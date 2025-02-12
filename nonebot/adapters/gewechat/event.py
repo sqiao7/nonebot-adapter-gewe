@@ -119,8 +119,10 @@ class MessageEvent(Event):
     """消息创建时间"""
     MsgType: MessageType
     """消息类型"""
-    Content: Optional[Message] = None
+    message: Optional[Message] = None
     """消息内容"""
+    original_message: Optional[Message] = None
+    """原始消息内容"""
     PushContent: Optional[str] = None
     """消息推送时简略内容"""
     NewMsgId: int
@@ -159,7 +161,8 @@ class MessageEvent(Event):
         obj.update({
             "FromUserName": FromUserName,
             "ToUserName": ToUserName,
-            "Content": ""
+            "message": "",
+            "original_message": ""
         })
         event: "MessageEvent" = cls.model_validate(obj)
 
@@ -193,11 +196,11 @@ class MessageEvent(Event):
 
     @override
     def get_message(self) -> Message:
-        return self.Content
+        return self.message
 
     @override
     def get_plaintext(self) -> str:
-        return self.Content.extract_plain_text()
+        return self.message.extract_plain_text()
 
     @override
     def get_user_id(self) -> str:
@@ -241,8 +244,11 @@ class TextMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.text(self.msg)
+        )
+        self.original_message = Message(
+            MessageSegment.text(self.data["Data"]["Content"]["string"])
         )
         return self
 
@@ -276,9 +282,10 @@ class ImageMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
     @override
@@ -309,9 +316,10 @@ class VoiceMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
     
     @override
@@ -340,9 +348,10 @@ class LocationMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
     
     @override
@@ -376,9 +385,10 @@ class VideoMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class EmojiMessageEvent(MessageEvent):
@@ -413,9 +423,10 @@ class EmojiMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.md5)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
     @override
@@ -462,9 +473,10 @@ class PublicLinkMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class FileUploadingMessageEvent(MessageEvent):
@@ -504,9 +516,10 @@ class FileUploadingMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class FileMessageEvent(MessageEvent):
@@ -546,9 +559,10 @@ class FileMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class NamecardMessageEvent(MessageEvent):
@@ -578,9 +592,10 @@ class NamecardMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class MiniProgramMessageEvent(MessageEvent):
@@ -619,9 +634,10 @@ class MiniProgramMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class QuoteMessageEvent(MessageEvent):
@@ -660,9 +676,10 @@ class QuoteMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class TransferMessageEvent(MessageEvent):
@@ -701,9 +718,10 @@ class TransferMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class RedPactMessageEvent(MessageEvent):
@@ -742,9 +760,10 @@ class RedPactMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
 
 class VideoChannelMessageEvent(MessageEvent):
@@ -783,9 +802,10 @@ class VideoChannelMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.Content = Message(
+        self.message = Message(
             MessageSegment.xml(self.raw_msg)
         )
+        self.original_message = deepcopy(self.message)
         return self
     
 

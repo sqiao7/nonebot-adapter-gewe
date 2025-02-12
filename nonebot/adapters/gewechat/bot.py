@@ -28,7 +28,7 @@ def check_at_me(bot: "Bot", event: TextMessageEvent):
             event.to_me = True
             loc = m.end()
             event.msg = event.msg[loc:]
-            event.Content[0].data["content"] = event.msg
+            event.message[0].data["content"] = event.msg
 
 def check_nickname(bot: "Bot", event: TextMessageEvent):
     nicknames = bot.config.nickname
@@ -40,7 +40,7 @@ def check_nickname(bot: "Bot", event: TextMessageEvent):
         event.to_me = True
         loc = m.end()
         event.msg = event.msg[loc:]
-        event.Content[0].data["content"] = event.msg
+        event.message[0].data["content"] = event.msg
 
 def to_me(bot: "Bot", event: TextMessageEvent):
     check_at_me(bot, event)
