@@ -17,19 +17,30 @@ if TYPE_CHECKING:
     
 
 def check_at_me(bot: "Bot", event: TextMessageEvent):
-    if bot.self_id in event.at_list or "notify@all" in event.at_list:
+    if "notify@all" in event.at_list:
         event.to_me = True
+    if bot.config.nickname:
+        nickname_regex = "|".join(bot.config.nickname)
+        m = re.search(rf"^@({nickname_regex})([\s,，]*|$)", event.msg, re.IGNORECASE)
+        if m:
+            nickname = m.group(1).strip()
+            log("DEBUG", f"User is at me: {nickname}")
+            event.to_me = True
+            loc = m.end()
+            event.msg = event.msg[loc:]
+            event.Content[0].data["content"] = event.msg
 
 def check_nickname(bot: "Bot", event: TextMessageEvent):
     nicknames = bot.config.nickname
     nickname_regex = "|".join(nicknames)
     m = re.search(rf"^({nickname_regex})([\s,，]*|$)", event.msg, re.IGNORECASE)
     if m:
-        nickname = m.group(1)
+        nickname = m.group(1).strip()
         log("DEBUG", f"User is calling me: {nickname}")
         event.to_me = True
         loc = m.end()
         event.msg = event.msg[loc:]
+        event.Content[0].data["content"] = event.msg
 
 def to_me(bot: "Bot", event: TextMessageEvent):
     check_at_me(bot, event)

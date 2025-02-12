@@ -15,18 +15,13 @@ def get_at_list(text: str) -> List[str]:
     """
     # 判断依据: @xxx 为一个@元素, 空格结束
     at_list = []
-    at = ""
     if "@所有人" in text or "@ all people" in text:
-        at_list.append("all")
+        at_list.append("notify@all")
         return at_list
-    for i in text:
-        if i == "@":
-            at = ""
-        elif i == " ":
-            if at != "":
-                at_list.append(at)
-        else:
-            at += i
+    else:
+        reg_at = re.compile(r'@\S+\s')
+        at_list = reg_at.findall(text)
+        at_list = [at.strip("@").strip() for at in at_list]
     return at_list
 
 def resp_json(resp: Response) -> Dict:
