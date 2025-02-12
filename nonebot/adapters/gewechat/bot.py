@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     
 
 def check_at_me(bot: "Bot", event: TextMessageEvent):
-    if bot.self_id in event.at_list:
+    if bot.self_id in event.at_list or "notify@all" in event.at_list:
         event.to_me = True
 
 def check_nickname(bot: "Bot", event: TextMessageEvent):
