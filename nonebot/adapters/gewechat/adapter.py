@@ -62,7 +62,7 @@ class Adapter(BaseAdapter):
         if not isinstance(self.driver, HTTPClientMixin):
             raise RuntimeError(
                 f"Current driver {self.config.driver} doesn't support HTTPClient server!"
-                f"{self.get_name()} Adapter need a HTTPClient server driver to work."
+                f"{self.get_name()} Adapter need a HTTPClient driver to work."
             )
         
         connected: bool = False
