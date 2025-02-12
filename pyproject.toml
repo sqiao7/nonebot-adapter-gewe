@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "nonebot-adapter-gewechat"
+authors = ["ShineLight <shine_light@qq.com>"]
+version = "0.2.0"
+readme = "README.md"
+license = "MIT"
+description = "NoneBot adapter for WeChat"
+homepage = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
+repository = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
+packages = [{ include = "nonebot" }]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+nonebot2 = {extras = ["fastapi", "httpx"], version = ">=2.3.0"}
+pydantic = ">=1.10.0,<3.0.0,!=2.5.0,!=2.5.1"
+qrcode = "~8.0"
+ujson = "~5.10.0"
+datetime = "~5.5"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+
+[tool.pytest.ini_options]
+addopts = "--cov nonebot/adapters/gewechat --cov-report term-missing"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
