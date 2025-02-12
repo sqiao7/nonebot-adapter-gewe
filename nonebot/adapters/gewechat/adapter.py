@@ -45,8 +45,8 @@ class Adapter(BaseAdapter):
     async def _setup_http(self) -> None:
         if not isinstance(self.driver, ASGIMixin):
             raise RuntimeError(
-                f"Current driver {self.config.driver} doesn't support ReverseDriver server!"
-                f"{self.get_name()} Adapter need a ReverseDriver server driver to work."
+                f"Current driver {self.config.driver} doesn't support ASGI server!"
+                f"{self.get_name()} Adapter need a ASGI server driver to work."
             )
         
         http_setup = HTTPServerSetup(
@@ -61,8 +61,8 @@ class Adapter(BaseAdapter):
     async def _setup_bot(self) -> None:
         if not isinstance(self.driver, HTTPClientMixin):
             raise RuntimeError(
-                f"Current driver {self.config.driver} doesn't support ForwardDriver server!"
-                f"{self.get_name()} Adapter need a ForwardDriver server driver to work."
+                f"Current driver {self.config.driver} doesn't support HTTPClient server!"
+                f"{self.get_name()} Adapter need a HTTPClient server driver to work."
             )
         
         connected: bool = False
@@ -117,7 +117,7 @@ class Adapter(BaseAdapter):
                 log("ERROR", "登录失败,请重启后重新扫码登录")
                 raise NetworkError("登录失败")
             else:
-                asyncio.sleep(5)
+                await asyncio.sleep(5)
 
         bot = Bot(
             self,
