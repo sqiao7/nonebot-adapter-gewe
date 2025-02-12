@@ -4,6 +4,15 @@
 
 _✨ NoneBot2 Gewechat Protocol适配器 / Gewechat Protocol Adapter for NoneBot2 ✨_
 
+<a href="https://cdn.jsdelivr.net/gh/Shine-Light/nonebot-adapter-gewechat@master/LICENSE">
+  <img src="https://img.shields.io/github/license/Shine-Light/nonebot-adapter-gewechat" alt="license">
+</a>
+<img src="https://img.shields.io/pypi/v/nonebot-adapter-gewechat" alt="version">
+<img src="https://img.shields.io/badge/Python-3.9+-yellow" alt="python">
+<a href="https://pypi.python.org/pypi/nonebot-adapter-gewechat">
+  <img src="https://img.shields.io/pypi/dm/nonebot-adapter-gewechat" alt="pypi download">
+</a>
+
 </div>
 
 ## 简介
