@@ -39,6 +39,7 @@ class Adapter(BaseAdapter):
         super().__init__(driver, **kwargs)
         self.adapter_config = get_plugin_config(Config)
         self.on_ready(self.startup)
+        self.driver.on_shutdown(self.shutdown)
 
     async def startup(self) -> None:
         """定义启动时的操作，例如和平台建立连接"""
