@@ -2,11 +2,12 @@ import qrcode
 import asyncio
 import ujson as json
 
-from typing import Any, Optional, List, Dict, Union
+from typing import Any, Optional, List, Dict, Union, Set
 from typing_extensions import override
 from pydantic import ValidationError
 
 from nonebot import get_plugin_config
+from nonebot.compat import type_validate_python
 from nonebot.drivers import (
     URL,
     Driver,
@@ -31,6 +32,7 @@ from .exception import ActionFailed, NetworkError
 
 class Adapter(BaseAdapter):
     token: str = ""
+    tasks: Set[asyncio.Task] = set()
 
     @override
     def __init__(self, driver: Driver, **kwargs: Any):
@@ -42,6 +44,23 @@ class Adapter(BaseAdapter):
         """定义启动时的操作，例如和平台建立连接"""
         await self.setup()
 
+    async def shutdown(self) -> None:
+        """定义退出时的操作，例如和平台断开连接"""
+        for task in self.tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(
+            *(asyncio.wait_for(task, timeout=10) for task in self.tasks),
+            return_exceptions=True,
+        )
+        self.tasks.clear()
+
+    async def setup(self) -> None:
+        await self._setup_http()
+        await self._setup_bot()
+        # http服务启动后,设置回调地址
+        self.tasks.add(asyncio.create_task(self._setup_callback()))
+
     async def _setup_http(self) -> None:
         if not isinstance(self.driver, ASGIMixin):
             raise RuntimeError(
@@ -50,7 +69,7 @@ class Adapter(BaseAdapter):
             )
         
         http_setup = HTTPServerSetup(
-            URL(self.adapter_config.gewechat_callback_path),
+            URL("/gewechat" + self.adapter_config.gewechat_callback_path),
             method="POST",
             name="gewechat_callback",
             handle_func=self._handle_http
@@ -125,6 +144,7 @@ class Adapter(BaseAdapter):
         )
         self.bot_connect(bot)
 
+    async def _setup_callback(self):
         count = 0
         # 4. 设置回调地址
         log("DEBUG", "设置回调地址")
@@ -142,11 +162,6 @@ class Adapter(BaseAdapter):
                 raise NetworkError("设置回调地址失败")
             else:
                 await asyncio.sleep(5)
-
-
-    async def setup(self) -> None:
-        await self._setup_http()
-        asyncio.create_task(self._setup_bot())
 
     @classmethod
     @override
@@ -217,10 +232,10 @@ class Adapter(BaseAdapter):
         """
         log("DEBUG", f"parse payload")
         try:
-            raw = TestMessage.model_validate(payload)
+            raw = type_validate_python(TestMessage, payload)
         except ValidationError:
             try:
-                raw = Message.model_validate(payload)
+                raw = type_validate_python(Message, payload)
             except ValidationError as e:
                 log("DEBUG", f"parse payload failed: {e}")
                 return None
@@ -240,4 +255,4 @@ class Adapter(BaseAdapter):
         # 让 bot 对事件进行处理
         if event:
             log("DEBUG", f"handle event: {event}")
-            asyncio.create_task(bot.handle_event(event))
+            self.tasks.add(asyncio.create_task(bot.handle_event(event)))
