@@ -6,7 +6,7 @@ from nonebot.utils import logger_wrapper
 
 from typing import List, Dict, Any
 
-log = logger_wrapper("adapter-gewechat")
+log = logger_wrapper("Gewechat")
 
 def get_at_list(text: str) -> List[str]:
     """
