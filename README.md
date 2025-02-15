@@ -40,7 +40,7 @@ DRIVER="~fastapi+~httpx"
 ```dotenv
 GEWECHAT_API_URL="http://127.0.0.1:2531/v2/api"
 GEWECHAT_DOWNLOAD_API_URL="http://127.0.0.1:2532/download"
-GEWECHAT_CALLBACK_URL="http://127.0.0.1:8080/callback/collect"
+GEWECHAT_CALLBACK_URL="http://127.0.0.1:8080/gewechat/callback/collect"
 GEWECHAT_CALLBACK_PATH="/callback/collect"
 SELF_MSG=false
 ```
