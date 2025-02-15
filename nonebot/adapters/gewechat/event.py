@@ -4,8 +4,7 @@ from typing_extensions import override
 from datetime import datetime
 from pydantic import BaseModel, model_validator
 from nonebot.adapters import Event as BaseEvent
-from nonebot.compat import model_dump
-from nonebot.utils import escape_tag
+from nonebot.compat import model_dump, type_validate_python
 
 from nonebot.adapters.gewechat.message import Message
 from typing import Dict, Union, Optional, List, Final
@@ -49,7 +48,7 @@ class Event(BaseEvent):
 
 
         event = cls(
-            data=data.model_dump(),
+            data=model_dump(data),
             type=type,
             sub_type=sub_type,
             to_me=False
@@ -152,7 +151,7 @@ class MessageEvent(Event):
     @override
     @classmethod
     def _parse_event(cls, event: Event) -> "MessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
@@ -164,7 +163,7 @@ class MessageEvent(Event):
             "message": "",
             "original_message": ""
         })
-        event: "MessageEvent" = cls.model_validate(obj)
+        event: "MessageEvent" = type_validate_python(cls, obj)
 
         sub_event: List[MessageEvent] = [
             TextMessageEvent,
@@ -189,7 +188,7 @@ class MessageEvent(Event):
                 if hasattr(event_type, "_parse__event"):
                     event = event_type._parse__event(event)
                 else:
-                    event = event_type.model_validate(obj)
+                    event = type_validate_python(event_type, obj)
                 break
 
         return event
@@ -232,14 +231,14 @@ class TextMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TextMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         msg = obj["data"]["Data"]["Content"]["string"]
         at_list = get_at_list(msg)
         obj.update({
             "at_list": at_list,
             "msg": msg
         })
-        event: "TextMessageEvent" = cls.model_validate(obj)
+        event: "TextMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -273,11 +272,11 @@ class ImageMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "ImageMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "ImageMessageEvent" = cls.model_validate(obj)
+        event: "ImageMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -307,11 +306,11 @@ class VoiceMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VoiceMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "VoiceMessageEvent" = cls.model_validate(obj)
+        event: "VoiceMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -339,11 +338,11 @@ class LocationMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "LocationMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "LocationMessageEvent" = cls.model_validate(obj)
+        event: "LocationMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -376,11 +375,11 @@ class VideoMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VideoMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "VideoMessageEvent" = cls.model_validate(obj)
+        event: "VideoMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -407,7 +406,7 @@ class EmojiMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "EmojiMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         md5: str = ""
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
@@ -418,7 +417,7 @@ class EmojiMessageEvent(MessageEvent):
             "md5": md5,
             "md5_size": md5_size
         })
-        event: "EmojiMessageEvent" = cls.model_validate(obj)
+        event: "EmojiMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -463,12 +462,12 @@ class PublicLinkMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "PublicLinkMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "PublicLinkMessageEvent" = cls.model_validate(obj)
+        event: "PublicLinkMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -506,12 +505,12 @@ class FileUploadingMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "FileUploadingMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "FileUploadingMessageEvent" = cls.model_validate(obj)
+        event: "FileUploadingMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -549,12 +548,12 @@ class FileMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "FileMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "FileMessageEvent" = cls.model_validate(obj)
+        event: "FileMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -582,12 +581,12 @@ class NamecardMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "NamecardMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "NamecardMessageEvent" = cls.model_validate(obj)
+        event: "NamecardMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -624,12 +623,12 @@ class MiniProgramMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "MiniProgramMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "MiniProgramMessageEvent" = cls.model_validate(obj)
+        event: "MiniProgramMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -666,12 +665,12 @@ class QuoteMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "QuoteMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "QuoteMessageEvent" = cls.model_validate(obj)
+        event: "QuoteMessageEvent" = type_validate_python(cls, obj)
         return event
 
     @model_validator(mode="after")
@@ -708,12 +707,12 @@ class TransferMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TransferMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "TransferMessageEvent" = cls.model_validate(obj)
+        event: "TransferMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -750,12 +749,12 @@ class RedPactMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "RedPactMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "RedPactMessageEvent" = cls.model_validate(obj)
+        event: "RedPactMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -792,12 +791,12 @@ class VideoChannelMessageEvent(MessageEvent):
     @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VideoChannelMessageEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "VideoChannelMessageEvent" = cls.model_validate(obj)
+        event: "VideoChannelMessageEvent" = type_validate_python(cls, obj)
         return event
     
     @model_validator(mode="after")
@@ -835,7 +834,7 @@ class NoticeEvent(Event):
     @override
     @classmethod
     def _parse_event(cls, event: Event) -> "NoticeEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         if obj["data"]["TypeName"] == TypeName.AddMsg:
             data = obj["data"]["Data"]
             FromUserName = data["FromUserName"]["string"]
@@ -851,7 +850,7 @@ class NoticeEvent(Event):
             })
         obj.update(obj["data"])
 
-        event: NoticeEvent = cls.model_validate(obj)
+        event: NoticeEvent = type_validate_python(cls, obj)
 
         sub_event: List[NoticeEvent] = [
             PokeEvent,
@@ -875,7 +874,7 @@ class NoticeEvent(Event):
                 if hasattr(event_type, "_parse__event"):
                     event = event_type._parse__event(event)
                 else:
-                    event = event_type.model_validate(obj)
+                    event = type_validate_python(event_type, obj)
                 break
 
         return event
@@ -928,7 +927,7 @@ class PokeEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "PokeEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName: str = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -936,7 +935,7 @@ class PokeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: PokeEvent = cls.model_validate(obj)
+        event: PokeEvent = type_validate_python(cls, obj)
         return event
 
 class RevokeEvent(NoticeEvent):
@@ -971,7 +970,7 @@ class RevokeEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "RevokeEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -979,7 +978,7 @@ class RevokeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: RevokeEvent = cls.model_validate(obj)
+        event: RevokeEvent = type_validate_python(cls, obj)
         return event
 
 class GroupRemovedEvent(NoticeEvent):
@@ -1010,7 +1009,7 @@ class GroupRemovedEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupRemovedEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -1018,7 +1017,7 @@ class GroupRemovedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupRemovedEvent = cls.model_validate(obj)
+        event: GroupRemovedEvent = type_validate_python(cls, obj)
         return event
 
 class GroupMemberRemovedEvent(NoticeEvent):
@@ -1055,7 +1054,7 @@ class GroupMemberRemovedEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupMemberRemovedEvent":
-        obj = deepcopy(event.model_dump(unknown_fields=True))
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -1063,7 +1062,7 @@ class GroupMemberRemovedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupMemberRemovedEvent = cls.model_validate(obj)
+        event: GroupMemberRemovedEvent = type_validate_python(cls, obj)
         return event
 
 class GroupDismissedEvent(NoticeEvent):
@@ -1100,7 +1099,7 @@ class GroupDismissedEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupDismissedEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
@@ -1109,7 +1108,7 @@ class GroupDismissedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupDismissedEvent = cls.model_validate(obj)
+        event: GroupDismissedEvent = type_validate_python(cls, obj)
         return event
 
 class GroupTitleChangeEvent(NoticeEvent):
@@ -1140,7 +1139,7 @@ class GroupTitleChangeEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupTitleChangeEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
 
         
         data = obj["data"]["Data"]
@@ -1150,7 +1149,7 @@ class GroupTitleChangeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupTitleChangeEvent = cls.model_validate(obj)
+        event: GroupTitleChangeEvent = type_validate_python(cls, obj)
         return event
 
 class GroupOwnerChangeEvent(NoticeEvent):
@@ -1181,7 +1180,7 @@ class GroupOwnerChangeEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupOwnerChangeEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -1189,7 +1188,7 @@ class GroupOwnerChangeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupOwnerChangeEvent = cls.model_validate(obj)
+        event: GroupOwnerChangeEvent = type_validate_python(cls, obj)
         return event
 
 class GroupInfoChangeEvent(NoticeEvent):
@@ -1242,7 +1241,7 @@ class GroupNoteEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupNoteEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -1250,7 +1249,7 @@ class GroupNoteEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupNoteEvent = cls.model_validate(obj)
+        event: GroupNoteEvent = type_validate_python(cls, obj)
         return event
 
 class GroupTodoEvent(NoticeEvent):
@@ -1285,7 +1284,7 @@ class GroupTodoEvent(NoticeEvent):
     @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupTodoEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
@@ -1293,7 +1292,7 @@ class GroupTodoEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupTodoEvent = cls.model_validate(obj)
+        event: GroupTodoEvent = type_validate_python(cls, obj)
         return event
 
 class FriendInfoChangeEvent(NoticeEvent):
@@ -1386,7 +1385,7 @@ class RequestEvent(Event):
     @override
     @classmethod
     def _parse_event(cls, event: Event) -> "RequestEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
@@ -1423,7 +1422,7 @@ class RequestEvent(Event):
             "flag": flag
         })
 
-        event: "RequestEvent" = cls.model_validate(obj)
+        event: "RequestEvent" = type_validate_python(cls, obj)
 
         sub_event: List[RequestEvent] = [
             FriendRequestEvent,
@@ -1435,7 +1434,7 @@ class RequestEvent(Event):
                 if hasattr(event_type, "_parse__event"):
                     event = event_type._parse__event(event)
                 else:
-                    event = event_type.model_validate(obj)
+                    event = type_validate_python(event_type, obj)
                 break
 
         return event
@@ -1465,7 +1464,7 @@ class FriendRequestEvent(RequestEvent):
     @override
     @classmethod
     def _parse__event(cls, event: RequestEvent) -> "FriendRequestEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         raw_msg = data["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
@@ -1479,8 +1478,8 @@ class FriendRequestEvent(RequestEvent):
             v3=v3,
             v4=v4
         )
-        obj.update(flag.model_dump())
-        event: "FriendRequestEvent" = cls.model_validate(obj)
+        obj.update(model_dump(flag))
+        event: "FriendRequestEvent" = type_validate_python(cls, obj)
         return event
 
 class GroupInviteEvent(RequestEvent):
@@ -1506,7 +1505,7 @@ class GroupInviteEvent(RequestEvent):
     @override
     @classmethod
     def _parse__event(cls, event: RequestEvent) -> "GroupInviteEvent":
-        obj = deepcopy(event.model_dump())
+        obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         raw_msg: str = data["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
@@ -1518,8 +1517,8 @@ class GroupInviteEvent(RequestEvent):
         flag = GroupRequestData(
             url=url
         )
-        obj.update(flag.model_dump())
-        event: "GroupInviteEvent" = cls.model_validate(obj)
+        obj.update(model_dump(flag))
+        event: "GroupInviteEvent" = type_validate_python(cls, obj)
         return event
 
 
@@ -1533,8 +1532,8 @@ class MetaEvent(Event):
     @override
     @classmethod
     def _parse_event(cls, event: Event) -> "RequestEvent":
-
-        event: "MetaEvent" = cls.model_validate(event.model_dump())
+        obj = deepcopy(model_dump(event))
+        event: "MetaEvent" = type_validate_python(cls, obj)
 
         sub_event: List[MetaEvent] = [
             OfflineEvent,
@@ -1546,7 +1545,7 @@ class MetaEvent(Event):
                 if hasattr(event_type, "_parse__event"):
                     event = event_type._parse__event(event)
                 else:
-                    event = event_type.model_validate(obj)
+                    event = type_validate_python(event_type, obj)
                 break
 
         return event
