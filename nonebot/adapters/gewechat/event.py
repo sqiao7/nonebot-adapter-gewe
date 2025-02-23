@@ -864,7 +864,6 @@ class NoticeEvent(Event):
             GroupNoteEvent,
             GroupTodoEvent,
             FriendInfoChangeEvent,
-            QuoteMessageEvent,
             FriendRemovedEvent,
             GroupQuitEvent
         ]
@@ -1129,7 +1128,7 @@ class GroupTitleChangeEvent(NoticeEvent):
     def type_validator(event: NoticeEvent) -> bool:
         if event.data["TypeName"] != TypeName.AddMsg:
             return False
-        if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
+        if event.data["Data"]["MsgType"] != MessageType.GroupOp:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
         if "修改群名为" in raw_msg:
