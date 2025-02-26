@@ -58,6 +58,9 @@ APPID="wx_xxxxxxx"
 ```
 其中，`APPID` 留空即为更换设备登录，首次登录请留空
 
+## API接口
+具体接口可前往[GeweChat文档](https://apifox.com/apidoc/shared-69ba62ca-cb7d-437e-85e4-6f3d3df271b1)查看, Bot类中已封装接口
+
 ## 示例
 ```python
 from nonebot import on_command, on_message
