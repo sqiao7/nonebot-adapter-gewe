@@ -19,6 +19,7 @@ class MessageType(int, Enum):
     Emoji = 47
     Location = 48
     AppMsg = 49 # 公众号/文件/小程序/引用/转账/红包/视频号/群聊邀请
+    RePush = 51 # 重新推送?
     GroupOp = 10000 # 被踢出群聊/更换群主/修改群名称
     SystemMsg = 10002 # 撤回/拍一拍/成员被移出群聊/解散群聊/群公告/群待办
 
