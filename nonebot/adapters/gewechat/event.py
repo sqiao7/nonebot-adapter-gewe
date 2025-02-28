@@ -207,10 +207,10 @@ class MessageEvent(Event):
 
     @override
     def get_user_id(self) -> str:
-        return self.FromUserName
+        return self.UserId
     
     def is_group_message(self) -> bool:
-        return "@chatroom" in self.ToUserName
+        return "@chatroom" in self.FromUserName
     
     @override
     def get_event_description(self):
