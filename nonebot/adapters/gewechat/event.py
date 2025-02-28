@@ -12,7 +12,7 @@ from copy import deepcopy
 from .model import TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
 from .model import Message as RawMessage
 from .message import Message, MessageSegment
-from .utils import get_at_list, remove_prefix_tag
+from .utils import get_at_list, remove_prefix_tag, get_sender
 
 class Event(BaseEvent):
     """
@@ -111,7 +111,9 @@ class MessageEvent(Event):
     MsgId: int
     """消息ID"""
     FromUserName: str
-    """发送者"""
+    """发送者,群聊时为群号"""
+    UserId: str
+    """发送者用户wxid"""
     ToUserName: str
     """接收者"""
     CreateTime: int
@@ -155,11 +157,13 @@ class MessageEvent(Event):
         data = obj["data"]["Data"]
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
+        UserId = get_sender(data["Content"]["string"])
         data["Content"]["string"] = remove_prefix_tag(data["Content"]["string"])
         obj.update(data)
         obj.update({
             "FromUserName": FromUserName,
             "ToUserName": ToUserName,
+            "UserId": UserId,
             "message": "",
             "original_message": ""
         })
