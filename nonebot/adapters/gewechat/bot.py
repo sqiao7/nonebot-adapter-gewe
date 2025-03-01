@@ -429,6 +429,168 @@ class Bot(BaseBot):
         request = revokeMsgRequest(toWxid=toWxid, msgId=msgId, newMsgId=newMsgId, createTime=createTime)
         return type_validate_python(Response, resp_json(await self.call_api("/message/revokeMsg", **model_dump(request))))
 
+    async def downloadImage(self, xml: str, type: int = 2) -> downloadImageResponse:
+        """
+        下载图片
+        xml: 回调中的xml
+        type: 下载的图片类型 1:高清图片 2:常规图片 3:缩略图
+        """
+        request = downloadImageRequest(xml=xml, type=type)
+        return type_validate_python(downloadImageResponse, resp_json(await self.call_api("/message/downloadImage", **model_dump(request))))
+    
+    async def postText(self, toWxid: str, content: str, ats: List[str] = []) -> postTextResponse:
+        """
+        发送文本消息
+        toWxid: 好友/群的ID
+        content: 文本内容
+        ats: @的用户列表
+        """
+        ats = ",".join(ats)
+        request = postTextRequest(toWxid=toWxid, content=content, ats=ats)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postText", **model_dump(request))))
+    
+    async def postFile(self, toWxid: str, fileUrl: str, fileName: str) -> postFileResponse:
+        """
+        发送文件
+        toWxid: 好友/群的ID
+        fileUrl: 文件url
+        fileName: 文件名
+        """
+        request = postFileRequest(toWxid=toWxid, fileUrl=fileUrl, fileName=fileName)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postFile", **model_dump(request))))
+    
+    async def postImage(self, toWxid: str, imgUrl: str) -> postImageResponse:
+        """
+        发送图片
+        toWxid: 好友/群的ID
+        imgUrl: 图片url
+        """
+        request = postImageRequest(toWxid=toWxid, imgUrl=imgUrl)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postImage", **model_dump(request))))
+    
+    async def postVoice(self, toWxid: str, voiceUrl: str, voiceDuration: int) -> postVoiceResponse:
+        """
+        发送语音
+        toWxid: 好友/群的ID
+        voiceUrl: 语音url,仅支持silk格式
+        voiceDuration: 语音时长,单位毫秒
+        """
+        request = postVoiceRequest(toWxid=toWxid, voiceUrl=voiceUrl, voiceDuration=voiceDuration)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postVoice", **model_dump(request))))
+
+    async def postVideo(self, toWxid: str, videoUrl: str, thumbUrl: str, videoDuration: int) -> postVideoResponse:
+        """
+        发送视频
+        toWxid: 好友/群的ID
+        videoUrl: 视频url
+        thumbUrl: 视频缩略图url
+        videoDuration: 视频时长,单位秒
+        """
+        request = postVideoRequest(toWxid=toWxid, videoUrl=videoUrl, thumbUrl=thumbUrl, videoDuration=videoDuration)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postVideo", **model_dump(request))))
+    
+    async def postLink(self, toWxid: str, title: str, desc: str, linkUrl: str, thumbUrl: str) -> postLinkResponse:
+        """
+        发送链接
+        toWxid: 好友/群的ID
+        title: 链接标题
+        desc: 链接描述
+        linkUrl: 链接url
+        thumbUrl: 链接图片url
+        """
+        request = postLinkRequest(toWxid=toWxid, title=title, desc=desc, linkUrl=linkUrl, thumbUrl=thumbUrl)
+        return type_validate_python(Response, resp_json(await self.call_api("/message/postLink", **model_dump(request))))
+    
+    async def postNameCard(self, toWxid: str, nickName: str, nameCardWxid: str) -> postNameCardResponse:
+        """
+        发送名片
+        toWxid: 好友/群的ID
+        nickName: 昵称
+        nameCardWxid: 名片wxid
+        """
+        request = postNameCardRequest(toWxid=toWxid, nickName=nickName, nameCardWxid=nameCardWxid)
+        return type_validate_python(postNameCardResponse, resp_json(await self.call_api("/message/postNameCard", **model_dump(request))))
+
+    async def postEmoji(self, toWxid: str, emojiMd5: str, emojiSize: str) -> postEmojiResponse:
+        """
+        发送表情
+        toWxid: 好友/群的ID
+        emojiMd5: 表情md5
+        emojiSize: 表情大小
+        """
+        request = postEmojiRequest(toWxid=toWxid, emojiMd5=emojiMd5, emojiSize=emojiSize)
+        return type_validate_python(postEmojiResponse, resp_json(await self.call_api("/message/postEmoji", **model_dump(request))))
+    
+    async def postAppMsg(self, toWxid: str, appmsg: str) -> postAppMsgResponse:
+        """
+        发送小程序,本接口可用于发送所有包含节点的消息，例如：音乐分享、视频号、引用消息等等
+        toWxid: 好友/群的ID
+        appmsg: 回调消息中的appmsg节点内容
+        """
+        request = postAppMsgRequest(toWxid=toWxid, appmsg=appmsg)
+        return type_validate_python(postAppMsgResponse, resp_json(await self.call_api("/message/postAppMsg", **model_dump(request))))
+    
+    async def postMiniApp(self, toWxid: str, miniAppId: str, displayName: str, pagePath: str, coverImgUrl: str, title: str, userName: str) -> postMiniAppResponse:
+        """
+        发送小程序
+        toWxid: 好友/群的ID
+        miniAppId: 小程序id
+        displayName: 小程序名称
+        pagePath: 小程序页面路径
+        coverImgUrl: 小程序封面图片url
+        title: 小程序标题
+        userName: 归属的用户ID
+        """
+        request = postMiniAppRequest(toWxid=toWxid, miniAppId=miniAppId, displayName=displayName, pagePath=pagePath, coverImgUrl=coverImgUrl, title=title, userName=userName)
+        return type_validate_python(postMiniAppResponse, resp_json(await self.call_api("/message/postMiniApp", **model_dump(request))))
+    
+    async def forwardFile(self, toWxid: str, xml: str) -> forwardFileResponse:
+        """
+        转发文件
+        toWxid: 好友/群的ID
+        xml: 文件消息的xml
+        """
+        request = forwardFileRequest(toWxid=toWxid, xml=xml)
+        return type_validate_python(forwardFileResponse, resp_json(await self.call_api("/message/forwardFile", **model_dump(request))))
+    
+    async def forwardImage(self, toWxid: str, xml: str) -> forwardImageResponse:
+        """
+        转发图片
+        toWxid: 好友/群的ID
+        xml: 图片消息的xml
+        """
+        request = forwardImageRequest(toWxid=toWxid, xml=xml)
+        return type_validate_python(forwardImageResponse, resp_json(await self.call_api("/message/forwardImage", **model_dump(request))))
+    
+    async def forwardVideo(self, toWxid: str, xml: str) -> forwardVideoResponse:
+        """
+        转发视频
+        toWxid: 好友/群的ID
+        xml: 视频消息的xml
+        """
+        request = forwardVideoRequest(toWxid=toWxid, xml=xml)
+        return type_validate_python(forwardVideoResponse, resp_json(await self.call_api("/message/forwardVideo", **model_dump(request))))
+    
+    async def forwardUrl(self, toWxid: str, xml: str) -> forwardUrlResponse:
+        """
+        转发链接
+        toWxid: 好友/群的ID
+        xml: 链接消息的xml
+        """
+        request = forwardUrlRequest(toWxid=toWxid, xml=xml)
+        return type_validate_python(forwardUrlResponse, resp_json(await self.call_api("/message/forwardUrl", **model_dump(request))))
+    
+    async def forwardMiniApp(self, toWxid: str, xml: str, coverImgUrl: str) -> forwardMiniAppResponse:
+        """
+        转发小程序
+        toWxid: 好友/群的ID
+        xml: 小程序消息的xml
+        coverImgUrl: 小程序封面图片url
+        """
+        request = forwardMiniAppRequest(toWxid=toWxid, xml=xml, coverImgUrl=coverImgUrl)
+        return type_validate_python(forwardMiniAppResponse, resp_json(await self.call_api("/message/forwardMiniApp", **model_dump(request))))
+
+
     async def addLabel(self, labelName: str) -> addLabelResponse:
         """
         添加标签

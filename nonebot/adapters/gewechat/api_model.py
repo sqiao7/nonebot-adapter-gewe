@@ -450,7 +450,20 @@ class roomAccessApplyCheckApproveRequest(BaseModel):
     msgContent: str
     """消息内容"""
 
-# 消息模块(此处只实现撤回方便使用、其余部分在适配器已实现)
+# 消息模块
+
+class messageResponseData(BaseModel):
+    """消息响应数据"""
+    toWxid: str
+    """接收人的wxid"""
+    createTime: Optional[int] = None
+    """发送时间"""
+    msgId: int
+    """消息ID"""
+    newMsgId: int
+    """新消息ID"""
+    type: Optional[int] = None
+    """消息类型"""
 
 class revokeMsgRequest(BaseModel):
     """撤回消息请求"""
@@ -462,6 +475,226 @@ class revokeMsgRequest(BaseModel):
     """发送类接口返回的newMsgId"""
     createTime: str
     """发送类接口返回的createTime"""
+
+class downloadImageRequest(BaseModel):
+    """下载图片请求"""
+    xml: str
+    """回调消息中的XML"""
+    type: int = 2
+    """下载的图片类型 1:高清图片 2:常规图片 3:缩略图"""
+
+class downloadImageData(BaseModel):
+    """下载图片数据"""
+    fileUrl: str
+    """图片链接地址, 7天有效"""
+
+class downloadImageResponse(Response):
+    data: downloadImageData
+
+class postTextRequest(BaseModel):
+    """发送文本消息请求"""
+    toWxid: str
+    """好友/群的ID"""
+    content: str
+    """消息内容"""
+    ats: str = ""
+    """@好友列表, 多个逗号分隔, 群主或管理员@全部的人，则填写'notify@all'"""
+
+class postTextResponse(Response):
+    data: messageResponseData
+
+class postImageRequest(BaseModel):
+    """发送图片请求"""
+    toWxid: str
+    """好友/群的ID"""
+    imgUrl: str
+    """图片链接地址"""
+
+class postImageData(messageResponseData):
+    aesKey: str
+    """cdn相关的aeskey"""
+    fileId: str
+    """cdn相关的fileid"""
+    length: int
+    """图片文件大小"""
+    width: int
+    """图片宽度"""
+    height: int
+    """图片高度"""
+    md5: str
+    """图片md5"""
+
+class postImageResponse(Response):
+    data: postImageData
+
+class postFileRequest(BaseModel):
+    """发送文件请求"""
+    toWxid: str
+    """好友/群的ID"""
+    fileUrl: str
+    """文件链接地址"""
+    fileName: str
+    """文件名称"""
+
+class postFileResponse(Response):
+    data: messageResponseData
+
+class postVoiceRequest(BaseModel):
+    """发送语音请求"""
+    toWxid: str
+    """好友/群的ID"""
+    voiceUrl: str
+    """语音链接地址, 仅支持silk格式"""
+    voiceDuration: int
+    """语音时长，单位毫秒"""
+
+class postVoiceResponse(Response):
+    data: messageResponseData
+
+class postVideoRequest(BaseModel):
+    """发送视频请求"""
+    toWxid: str
+    """好友/群的ID"""
+    videoUrl: str
+    """视频链接地址"""
+    thumbUrl: str
+    """视频封面链接地址"""
+    videoDuration: int
+    """视频时长，单位秒"""
+
+class postVideoData(messageResponseData):
+    """消息类型"""
+    aesKey: str
+    """cdn相关的aeskey"""
+    fileId: Optional[str] = None
+    """cdn相关的fileid"""
+    length: int
+    """视频文件大小"""
+
+class postVideoResponse(Response):
+    data: postVideoData
+
+class postLinkRequest(BaseModel):
+    """发送链接请求"""
+    toWxid: str
+    """好友/群的ID"""
+    title: str
+    """链接标题"""
+    desc: str
+    """链接描述"""
+    linkUrl: str
+    """链接地址"""
+    thumbUrl: str
+    """链接图片地址"""
+
+class postLinkResponse(Response):
+    data: messageResponseData
+
+class postNameCardRequest(BaseModel):
+    """发送名片请求"""
+    toWxid: str
+    """好友/群的ID"""
+    nickName: str
+    """名片的昵称"""
+    nameCardWxid: str
+    """名片的wxid"""
+
+class postNameCardResponse(Response):
+    data: messageResponseData
+
+class postEmojiRequest(BaseModel):
+    """发送表情包请求"""
+    toWxid: str
+    """好友/群的ID"""
+    emojiMd5: str
+    """表情包md5"""
+    emojiSize: int
+    """表情包大小"""
+
+class postEmojiResponse(Response):
+    data: messageResponseData
+
+class postAppMsgRequest(BaseModel):
+    """发送小程序请求,本接口可用于发送所有包含节点的消息，例如：音乐分享、视频号、引用消息等等"""
+    toWxid: str
+    """好友/群的ID"""
+    appmsg: str
+    """回调消息中的appmsg节点内容"""
+
+class postAppMsgResponse(Response):
+    data: messageResponseData
+
+class postMiniAppRequest(BaseModel):
+    """发送小程序请求"""
+    toWxid: str
+    """好友/群的ID"""
+    miniAppId: str
+    """小程序ID"""
+    displayName: str
+    """小程序名称"""
+    pagePath: str
+    """小程序页面路径"""
+    coverImgUrl: str
+    """小程序封面链接地址"""
+    title: str
+    """小程序标题"""
+    userName: str
+    """归属的用户ID"""
+
+class postMiniAppResponse(Response):
+    data: messageResponseData
+
+class forwardFileRequest(BaseModel):
+    """转发文件请求"""
+    toWxid: str
+    """好友/群的ID"""
+    xml: str
+    """xml"""
+
+class forwardFileResponse(Response):
+    data: messageResponseData
+
+class forwardImageRequest(BaseModel):
+    """转发图片请求"""
+    toWxid: str
+    """好友/群的ID"""
+    xml: str
+    """xml"""
+
+class forwardImageResponse(Response):
+    data: postImageData
+
+class forwardVideoRequest(BaseModel):
+    """转发视频请求"""
+    toWxid: str
+    """好友/群的ID"""
+    xml: str
+    """xml"""
+
+class forwardVideoResponse(Response):
+    data: postVideoData
+
+class forwardUrlRequest(BaseModel):
+    """转发链接请求"""
+    toWxid: str
+    """好友/群的ID"""
+    xml: str
+    """xml"""
+
+class forwardUrlResponse(Response):
+    data: messageResponseData
+
+class forwardMiniAppRequest(BaseModel):
+    """转发小程序请求"""
+    toWxid: str
+    """好友/群的ID"""
+    xml: str
+    """xml"""
+    coverImgUrl: str
+    """小程序封面链接地址"""
+
+class forwardMiniAppResponse(Response):
+    data: messageResponseData
 
 # 标签模块
 
