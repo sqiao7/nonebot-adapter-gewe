@@ -215,6 +215,10 @@ class MessageEvent(Event):
     @override
     def get_event_description(self):
         return self.PushContent
+    
+    @override
+    def get_session_id(self) -> str:
+        return f"{self.FromUserName}-{self.UserId}"
 
 class TextMessageEvent(MessageEvent):
     """
