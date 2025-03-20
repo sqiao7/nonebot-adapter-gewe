@@ -61,6 +61,9 @@ APPID="wx_xxxxxxx"
 ## API接口
 具体接口可前往[GeweChat文档](https://apifox.com/apidoc/shared-69ba62ca-cb7d-437e-85e4-6f3d3df271b1)查看, Bot类中已封装接口
 
+> [!WARNING]
+> Gewechat目前只支持图片的下载，语音、视频等暂不支持
+
 ## 示例
 ```python
 from nonebot import on_message
