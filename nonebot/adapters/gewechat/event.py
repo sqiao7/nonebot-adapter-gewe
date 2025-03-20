@@ -1611,5 +1611,4 @@ class TestEvent(MetaEvent):
 
 @event_preprocessor
 async def _(event: ImageMessageEvent):
-    print(id(event))
     await event.download_image()
