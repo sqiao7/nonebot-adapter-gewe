@@ -280,9 +280,9 @@ class MemberDetail(BaseModel):
     """成员的wxid"""
     nickName: str
     """成员的昵称"""
-    pyInitial: str
+    pyInitial: Optional[str] = None
     """成员昵称的拼音首字母"""
-    quanPin: str
+    quanPin: Optional[str] = None
     """成员昵称的拼音全拼"""
     sex: int
     """成员的性别"""
@@ -298,7 +298,7 @@ class MemberDetail(BaseModel):
     """个性签名"""
     alias: Optional[str] = None
     """微信号"""
-    snsBgImg: str
+    snsBgImg: Optional[str] = None
     """朋友圈背景图片"""
     bigHeadImgUrl: str
     """大尺寸头像"""
@@ -310,7 +310,7 @@ class MemberDetail(BaseModel):
     """描述的图片链接"""
     labelList: Optional[str] = None
     """标签列表, 多个英文逗号分隔"""
-    country: str
+    country: Optional[str] = None
     """国家"""
     province: Optional[str] = None
     """省份"""
@@ -318,11 +318,11 @@ class MemberDetail(BaseModel):
     """城市"""
     phoneNumList: Optional[List[str]] = None
     """手机号码"""
-    friendUserName: str
+    friendUserName: Optional[str] = None
     """好友wxid"""
     inviterUserName: Optional[str] = None
     """邀请人的wxid"""
-    memberFlag: Optional[str] = None
+    memberFlag: Optional[int] = None
     """标识"""
 
 class getChatroomMemberDetailResponse(Response):
