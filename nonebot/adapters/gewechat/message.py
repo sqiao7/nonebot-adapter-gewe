@@ -105,16 +105,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param userName: 归属的用户ID
         """
         return MiniApp("mp", {"miniAppId": miniAppId, "displayName": displayName, "pagePath": pagePath, "coverImgUrl": coverImgUrl, "title": title, "userName": userName})
-    
-    @classmethod
-    def revoke(cls, msgId: str, newMsgId: str, createTime: str) -> Self:
-        """撤回消息
-        :param msgId: 回调消息中的msgId
-        :param newMsgId: 回调消息中的newMsgId
-        :param createTime: 回调消息中的createTime
-        """
-        return Revoke("revoke", {"msgId": msgId, "newMsgId": newMsgId, "createTime": createTime})
-    
+
     @classmethod
     def forwardFile(cls, xml: str) -> Self:
         """转发文件
