@@ -3,8 +3,11 @@ import xml.etree.ElementTree as ET
 from typing_extensions import override
 from datetime import datetime
 from pydantic import BaseModel, model_validator
+from nonebot import get_bots, get_driver
 from nonebot.adapters import Event as BaseEvent
+from nonebot.message import event_preprocessor
 from nonebot.compat import model_dump, type_validate_python
+from nonebot.log import logger
 
 from nonebot.adapters.gewechat.message import Message
 from typing import Dict, Union, Optional, List, Final
@@ -289,11 +292,22 @@ class ImageMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        self.message = Message(
-            MessageSegment.xml(self.raw_msg)
-        )
+        if self.message is None:
+            self.message = Message(
+                MessageSegment.xml(self.raw_msg)
+            )
         self.original_message = deepcopy(self.message)
         return self
+    
+    async def download_image(self):
+        """异步下载图片并更新消息内容"""
+        try:
+            bot = next(iter(get_bots().values()))  # 获取第一个 bot 实例
+            image_url = (await bot.downloadImage(self.raw_msg, 1)).data.fileUrl
+            full_url = get_driver().config.gewechat_download_api_url + "/" + image_url
+            self.message = Message([MessageSegment.image(full_url)])
+        except Exception as e:
+            logger.error(f"下载图片失败: {e}")
 
     @override
     @staticmethod
@@ -1593,3 +1607,9 @@ class TestEvent(MetaEvent):
     @override
     def get_event_description(self):
         return "测试连接事件"
+
+
+@event_preprocessor
+async def _(event: ImageMessageEvent):
+    print(id(event))
+    await event.download_image()
