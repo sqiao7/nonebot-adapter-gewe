@@ -63,24 +63,20 @@ APPID="wx_xxxxxxx"
 
 ## 示例
 ```python
-from nonebot import on_command, on_message
+from nonebot import on_message
 from nonebot.adapters.gewechat.message import MessageSegment, Message
-from nonebot.adapters.gewechat.event import TextMessageEvent, EmojiMessageEvent
+from nonebot.adapters.gewechat.event import ImageMessageEvent, EmojiMessageEvent
 from nonebot.adapters.gewechat.bot import Bot
-from nonebot.params import CommandArg
 
-revoke = on_command("revoke", priority=5)
+revoke = on_message(priority=5)
 @revoke.handle()
-async def _(bot: Bot, event: TextMessageEvent, content: Message = CommandArg()):
-    text = str(content)
-    msgId = text.split(" ")[0]
-    newMsgId = text.split(" ")[1]
-    createdTime = text.split(" ")[2]
-    await revoke.send(MessageSegment.revoke(
-        msgId,
-        newMsgId,
-        createdTime
-    ))
+async def _(bot: Bot, event: ImageMessageEvent):
+    await bot.revokeMsg(
+        event.FromUserName,
+        event.MsgId,
+        event.newMsgId,
+        event.CreateTime
+    )
 
 emoji = on_message(priority=10)
 @emoji.handle()

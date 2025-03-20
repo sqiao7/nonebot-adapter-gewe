@@ -98,9 +98,7 @@ class Bot(BaseBot):
 
         msg_list = []
         for segment in message:
-            if segment.type == "revoke":
-                api = "/message/revokeMsg"
-            elif "forward" in segment.type:
+            if "forward" in segment.type:
                 api = f"/message/{segment.type}"
             else:
                 api = f"/message/post{api_map[segment.type]}"
@@ -421,7 +419,7 @@ class Bot(BaseBot):
     async def revokeMsg(self, toWxid: str, msgId: str, newMsgId: str, createTime: str) -> Response:
         """
         撤回消息
-        toWxidL: 好友/群的ID
+        toWxid: 好友/群的ID
         msgId: 回调中的msgId
         newMsgId: 回调中的newMsgId
         createTime: 回调中的createTime
