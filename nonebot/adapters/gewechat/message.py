@@ -1,4 +1,5 @@
-from typing import Type, Union, Mapping, Iterable, TypedDict, TYPE_CHECKING
+import re
+from typing import Type, Iterable, TypedDict, TYPE_CHECKING
 from typing_extensions import override, Self
 from dataclasses import dataclass
 from nonebot.adapters import Message as BaseMessage, MessageSegment as BaseMessageSegment
@@ -14,7 +15,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
     @override
     def __str__(self) -> str:
         if self.type == "text":
-            return self.data["content"]
+            return self.data["text"]
         return str(self.type)
 
     @override
@@ -22,13 +23,24 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return self.type == "text"
     
     @classmethod
-    def text(cls, content: str, ats: str = "") -> Self:
+    def text(cls, text: str) -> Self:
         """文本消息
-        :param content: 文本内容
-        :param ats: 被@的用户列表，格式为`wxid1,wxid2`
+        :param text: 文本内容
         """
-        return Text("text", {"content": content, "ats": ats})
+        return Text("text", {"text": text})
+
+    @classmethod
+    def at(cls, wxid: str) -> Self:
+        """@消息
+        :param wxid: 被@的wxid
+        """
+        return At("at", {"wxid": wxid})
     
+    @classmethod
+    def at_all(cls) -> Self:
+        """@所有人"""
+        return AtAll("at_all")
+
     @classmethod
     def image(cls, imgUrl: str) -> Self:
         """图片消息
@@ -149,21 +161,9 @@ class MessageSegment(BaseMessageSegment["Message"]):
         """
         return Xml("xml", {"xml": xml})
 
-class Message(BaseMessage[MessageSegment]):
-
-    @classmethod
-    @override
-    def get_segment_class(cls) -> Type[MessageSegment]:
-        return MessageSegment
-
-    @staticmethod
-    @override
-    def _construct(msg: str) -> Iterable[MessageSegment]:
-        return [MessageSegment.text(msg)]
 
 class _TextData(TypedDict):
-    content: str
-    ats: list
+    text: str
 
 @dataclass
 class Text(MessageSegment):
@@ -172,12 +172,29 @@ class Text(MessageSegment):
 
     @override
     def __str__(self):
-        return self.data["content"]
+        return self.data["text"]
     
     @override
     def is_text(self) -> bool:
         return True
-    
+
+
+class _AtData(TypedDict):
+    wxid: str
+
+@dataclass
+class At(MessageSegment):
+    if TYPE_CHECKING:
+        data: _AtData
+
+
+@dataclass
+class AtAll(MessageSegment):
+    @override
+    def __str__(self):
+        return "notify@all"
+
+
 class _ImageData(TypedDict):
     imgUrl: str
 
@@ -310,3 +327,69 @@ class _ForwardMiniAppData(TypedDict):
 class forwardMP(MessageSegment):
     if TYPE_CHECKING:
         data: _ForwardMiniAppData
+
+
+class Message(BaseMessage[MessageSegment]):
+
+    @classmethod
+    @override
+    def get_segment_class(cls) -> Type[MessageSegment]:
+        return MessageSegment
+
+    @staticmethod
+    @override
+    def _construct(msg: str) -> Iterable[MessageSegment]:
+        text_begin = 0
+        for embed in re.finditer(r"@(?:所有人| all people|\S+)\s?", msg):
+            content = msg[text_begin:embed.pos + embed.start()]
+            if content:
+                yield MessageSegment.text(content)
+            text_begin = embed.pos + embed.end()
+            at = embed.group().strip()
+            if at == "@所有人" or at == "@ all people":
+                yield MessageSegment.at_all()
+            else:
+                yield MessageSegment.at(at[1:])
+        content = msg[text_begin:]
+        if content:
+            yield MessageSegment.text(content)
+
+    def to_payload(self) -> list[tuple[str, dict]]:
+        segments = self.exclude("at", "at_all")
+        if segments.has("text"):
+            first_text = segments["text", 0]
+        else:
+            first_text = MessageSegment.text("")
+            segments.insert(0, first_text)
+        if self.has("at_all"):
+            first_text.data["ats"] = "notify@all"
+        if self.has("at"):
+            at_list = self.get("at")
+            if "ats" in first_text.data:
+                first_text.data["ats"] += "," + ",".join([at.data["wxid"] for at in at_list])
+            else:
+                first_text.data["ats"] = ",".join([at.data["wxid"] for at in at_list])
+        api_map = {
+            "text": "Text",
+            "image": "Image",
+            "file": "File",
+            "video": "Video",
+            "voice": "Voice",
+            "emoji": "Emoji",
+            "namecard": "NameCard",
+            "appmsg": "AppMsg",
+            "mp": "MiniApp"
+        }
+
+        msg_payload = []
+        for segment in segments:
+            if "forward" in segment.type:
+                api = f"/message/{segment.type}"
+            else:
+                api = f"/message/post{api_map[segment.type]}"
+            if segment.type == "text":
+                msg_payload.append((api, {"content": segment.data["text"], "ats": segment.data.get("ats", "")}))
+            else:
+                msg_payload.append((api, segment.data))
+
+        return msg_payload

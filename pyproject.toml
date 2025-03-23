@@ -11,7 +11,7 @@ packages = [{ include = "nonebot" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-nonebot2 = ">=2.3.0"
+nonebot2 = ">=2.4.2"
 pydantic = ">=1.10.0,<3.0.0,!=2.5.0,!=2.5.1"
 qrcode = "^8.0"
 ujson = "^5.10.0"

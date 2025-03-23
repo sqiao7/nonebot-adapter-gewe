@@ -1,28 +1,29 @@
 import xml.etree.ElementTree as ET
-
-from typing_extensions import override
+from copy import deepcopy
 from datetime import datetime
-from pydantic import BaseModel, model_validator
-from nonebot import get_bots, get_driver
+from typing import TYPE_CHECKING, Union, Optional, Final
+from typing_extensions import override
+
+from pydantic import BaseModel
+from nonebot import get_driver
 from nonebot.adapters import Event as BaseEvent
-from nonebot.message import event_preprocessor
-from nonebot.compat import model_dump, type_validate_python
+from nonebot.compat import model_dump, type_validate_python, model_validator
 from nonebot.log import logger
 
-from nonebot.adapters.gewechat.message import Message
-from typing import Dict, Union, Optional, List, Final
-from copy import deepcopy
 from .model import TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
 from .model import Message as RawMessage
 from .message import Message, MessageSegment
-from .utils import get_at_list, remove_prefix_tag, get_sender
+from .utils import remove_prefix_tag, get_sender
+
+if TYPE_CHECKING:
+    from .bot import Bot
 
 class Event(BaseEvent):
     """
     gewechat 事件基类
     """
 
-    data: Dict
+    data: dict
     """事件原始数据"""
     type: str
     """事件类型"""
@@ -39,7 +40,7 @@ class Event(BaseEvent):
     @classmethod
     def parse_event(cls, data: Union[TestMessage, RawMessage]) -> "Event":
 
-        sub_event: List[Event] = [
+        sub_event: list[Event] = [
             MessageEvent,
             NoticeEvent,
             RequestEvent,
@@ -79,7 +80,7 @@ class Event(BaseEvent):
     @override
     def get_event_description(self) -> str:
         if self.type == TypeName.AddMsg:
-            return self.data.Data.PushContent
+            return self.data["Data"]["PushContent"]
         return "Event"
 
     @override
@@ -100,7 +101,7 @@ class Event(BaseEvent):
 
     @override
     def is_tome(self) -> bool:
-        return False
+        return self.to_me
 
 
 
@@ -123,16 +124,18 @@ class MessageEvent(Event):
     """消息创建时间"""
     MsgType: MessageType
     """消息类型"""
-    message: Optional[Message] = None
-    """消息内容"""
-    original_message: Optional[Message] = None
-    """原始消息内容"""
     PushContent: Optional[str] = None
     """消息推送时简略内容"""
     NewMsgId: int
     """消息排重用消息ID"""
     MsgSeq: int
     """消息序列"""
+
+    if TYPE_CHECKING:
+        message: Message
+        """消息内容"""
+        original_message: Message
+        """原始消息内容"""
 
     @override
     @staticmethod
@@ -167,12 +170,10 @@ class MessageEvent(Event):
             "FromUserName": FromUserName,
             "ToUserName": ToUserName,
             "UserId": UserId,
-            "message": "",
-            "original_message": ""
         })
         event: "MessageEvent" = type_validate_python(cls, obj)
 
-        sub_event: List[MessageEvent] = [
+        sub_event: list[MessageEvent] = [
             TextMessageEvent,
             ImageMessageEvent,
             VoiceMessageEvent,
@@ -229,10 +230,6 @@ class TextMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Text
     """消息子类型"""
-    at_list: list[str] = []
-    """@列表"""
-    msg: str = ""
-    """消息内容"""
 
     @override
     @staticmethod
@@ -243,31 +240,14 @@ class TextMessageEvent(MessageEvent):
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TextMessageEvent":
         obj = deepcopy(model_dump(event))
-        msg = obj["data"]["Data"]["Content"]["string"]
-        at_list = get_at_list(msg)
-        obj.update({
-            "at_list": at_list,
-            "msg": msg
-        })
-        event: "TextMessageEvent" = type_validate_python(cls, obj)
-        return event
-    
+        return type_validate_python(cls, obj)
+
     @model_validator(mode="after")
     def post_process(self):
-        self.message = Message(
-            MessageSegment.text(self.msg)
-        )
-        self.original_message = Message(
-            MessageSegment.text(self.data["Data"]["Content"]["string"])
-        )
+        self.message = Message(self.data["Data"]["Content"]["string"])
+        self.original_message = Message(self.data["Data"]["Content"]["string"])
         return self
 
-    @override
-    def get_plaintext(self) -> str:
-        return self.msg
-
-    def get_at_list(self) -> list[str]:
-        return self.at_list
 
 class ImageMessageEvent(MessageEvent):
     """
@@ -287,8 +267,7 @@ class ImageMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "ImageMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -299,10 +278,9 @@ class ImageMessageEvent(MessageEvent):
         self.original_message = deepcopy(self.message)
         return self
     
-    async def download_image(self):
+    async def download_image(self, bot: Bot):
         """异步下载图片并更新消息内容"""
         try:
-            bot = next(iter(get_bots().values()))  # 获取第一个 bot 实例
             image_url = (await bot.downloadImage(self.raw_msg, 1)).data.fileUrl
             full_url = get_driver().config.gewechat_download_api_url + "/" + image_url
             self.message = Message([MessageSegment.image(full_url)])
@@ -332,8 +310,7 @@ class VoiceMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "VoiceMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -364,8 +341,7 @@ class LocationMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "LocationMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -401,8 +377,7 @@ class VideoMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": obj["data"]["Data"]["Content"]["string"]
         })
-        event: "VideoMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -439,13 +414,12 @@ class EmojiMessageEvent(MessageEvent):
             "md5": md5,
             "md5_size": md5_size
         })
-        event: "EmojiMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
         self.message = Message(
-            MessageSegment.xml(self.md5)
+            MessageSegment.emoji(self.md5, self.md5_size)
         )
         self.original_message = deepcopy(self.message)
         return self
@@ -475,9 +449,9 @@ class PublicLinkMessageEvent(MessageEvent):
             return False
         if root.find("appmsg").find("title") is None:
             return False
-        type = root.find("appmsg").find("type").text
+        type_ = root.find("appmsg").find("type").text
         title = root.find("appmsg").find("title").text
-        if int(type) == AppType.Link.value and ("邀请你加入群聊" not in title):
+        if int(type_) == AppType.Link.value and ("邀请你加入群聊" not in title):
             return True
         return False
 
@@ -489,8 +463,7 @@ class PublicLinkMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "PublicLinkMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -519,8 +492,8 @@ class FileUploadingMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.FileSend.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.FileSend.value:
             return True
         return False
 
@@ -532,8 +505,7 @@ class FileUploadingMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "FileUploadingMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -562,8 +534,8 @@ class FileMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.FileDone.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.FileDone.value:
             return True
         return False
 
@@ -575,8 +547,7 @@ class FileMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "FileMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -608,8 +579,7 @@ class NamecardMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "NamecardMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -637,8 +607,8 @@ class MiniProgramMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) in [AppType.MiniProgram1.value, AppType.MiniProgram2.value]:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) in [AppType.MiniProgram1.value, AppType.MiniProgram2.value]:
             return True
         return False
 
@@ -650,8 +620,7 @@ class MiniProgramMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "MiniProgramMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -679,8 +648,8 @@ class QuoteMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.Quote.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.Quote.value:
             return True
         return False
 
@@ -692,8 +661,7 @@ class QuoteMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "QuoteMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
     def post_process(self):
@@ -721,8 +689,8 @@ class TransferMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.Transfer.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.Transfer.value:
             return True
         return False
 
@@ -734,8 +702,7 @@ class TransferMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "TransferMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -763,8 +730,8 @@ class RedPactMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.RedPacket.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.RedPacket.value:
             return True
         return False
 
@@ -776,8 +743,7 @@ class RedPactMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "RedPactMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -805,8 +771,8 @@ class VideoChannelMessageEvent(MessageEvent):
             return False
         if root.find("appmsg") is None:
             return False
-        type = root.find("appmsg").find("type").text
-        if int(type) == AppType.VideoChannel.value:
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.VideoChannel.value:
             return True
         return False
 
@@ -818,8 +784,7 @@ class VideoChannelMessageEvent(MessageEvent):
         obj.update({
             "raw_msg": raw_msg
         })
-        event: "VideoChannelMessageEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
     
     @model_validator(mode="after")
     def post_process(self):
@@ -872,9 +837,9 @@ class NoticeEvent(Event):
             })
         obj.update(obj["data"])
 
-        event: NoticeEvent = type_validate_python(cls, obj)
+        event = type_validate_python(cls, obj)
 
-        sub_event: List[NoticeEvent] = [
+        sub_event: list[NoticeEvent] = [
             PokeEvent,
             RevokeEvent,
             GroupRemovedEvent,
@@ -956,8 +921,7 @@ class PokeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: PokeEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class RevokeEvent(NoticeEvent):
     """
@@ -999,8 +963,7 @@ class RevokeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: RevokeEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupRemovedEvent(NoticeEvent):
     """
@@ -1038,8 +1001,7 @@ class GroupRemovedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupRemovedEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupMemberRemovedEvent(NoticeEvent):
     """
@@ -1083,8 +1045,7 @@ class GroupMemberRemovedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupMemberRemovedEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupDismissedEvent(NoticeEvent):
     """
@@ -1129,8 +1090,7 @@ class GroupDismissedEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupDismissedEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupTitleChangeEvent(NoticeEvent):
     """
@@ -1170,8 +1130,7 @@ class GroupTitleChangeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupTitleChangeEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupOwnerChangeEvent(NoticeEvent):
     """
@@ -1209,8 +1168,7 @@ class GroupOwnerChangeEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupOwnerChangeEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupInfoChangeEvent(NoticeEvent):
     """
@@ -1270,8 +1228,7 @@ class GroupNoteEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupNoteEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupTodoEvent(NoticeEvent):
     """
@@ -1313,8 +1270,7 @@ class GroupTodoEvent(NoticeEvent):
             "ToUserName": ToUserName,
             "raw_msg": raw_msg
         })
-        event: GroupTodoEvent = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class FriendInfoChangeEvent(NoticeEvent):
     """
@@ -1384,7 +1340,7 @@ class RequestEvent(Event):
     """消息接收人的wxid"""
     raw_msg: str
     """原始消息内容"""
-    flag: Dict
+    flag: dict
     """消息标识,可用于操作请求"""
 
     @override
@@ -1445,7 +1401,7 @@ class RequestEvent(Event):
 
         event: "RequestEvent" = type_validate_python(cls, obj)
 
-        sub_event: List[RequestEvent] = [
+        sub_event: list[RequestEvent] = [
             FriendRequestEvent,
             GroupInviteEvent
         ]
@@ -1500,8 +1456,7 @@ class FriendRequestEvent(RequestEvent):
             v4=v4
         )
         obj.update(model_dump(flag))
-        event: "FriendRequestEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 class GroupInviteEvent(RequestEvent):
     """
@@ -1539,8 +1494,7 @@ class GroupInviteEvent(RequestEvent):
             url=url
         )
         obj.update(model_dump(flag))
-        event: "GroupInviteEvent" = type_validate_python(cls, obj)
-        return event
+        return type_validate_python(cls, obj)
 
 
 
@@ -1556,7 +1510,7 @@ class MetaEvent(Event):
         obj = deepcopy(model_dump(event))
         event: "MetaEvent" = type_validate_python(cls, obj)
 
-        sub_event: List[MetaEvent] = [
+        sub_event: list[MetaEvent] = [
             OfflineEvent,
             TestEvent
         ]
@@ -1607,8 +1561,3 @@ class TestEvent(MetaEvent):
     @override
     def get_event_description(self):
         return "测试连接事件"
-
-
-@event_preprocessor
-async def _(event: ImageMessageEvent):
-    await event.download_image()
