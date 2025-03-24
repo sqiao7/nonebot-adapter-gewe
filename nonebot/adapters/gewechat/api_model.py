@@ -1,5 +1,7 @@
-from pydantic import BaseModel
-from typing import List, Dict, Union, Optional
+from typing import Union, Optional
+
+from nonebot.compat import PYDANTIC_V2, ConfigDict, model_validator
+from pydantic import BaseModel, Field
 
 # 联系人模块
 
@@ -25,23 +27,30 @@ class InfoData(BaseModel):
     labelList: Optional[str] = None
     province: str
     city: str
-    phoneNumList: Optional[List[str]] = None
+    phoneNumList: Optional[list[str]] = None
 
 class Response(BaseModel):
     ret: int
     """状态码"""
     msg: str
     """返回信息"""
-    data: Optional[Dict] = None
+    data: Optional[dict]
     """返回数据"""
+
+    @model_validator(mode="before")
+    def check_data(cls, data):
+        if isinstance(data, dict):
+            if "data" not in data:
+                data["data"] = None
+        return data
 
 class ContactListData(BaseModel):
     """联系人列表数据"""
-    friends: List[str]
+    friends: list[str]
     """好友列表"""
-    chatrooms: List[str]
+    chatrooms: list[str]
     """群聊列表"""
-    ghs: List[str]
+    ghs: list[str]
     """公众号列表"""
 
 class ContactListResponse(Response):
@@ -92,26 +101,26 @@ class DeleteFriendRequest(BaseModel):
 
 class uploadPhoneAddressRequest(BaseModel):
     """上传手机通讯录请求"""
-    phones: List[str]
+    phones: list[str]
     """需要上传的手机号"""
     opType: int
     """操作类型, 1:添加, 2:删除"""
 
 class GetBreifInfoRequest(BaseModel):
     """获取简要信息请求"""
-    wxids: List[str]
+    wxids: list[str]
     """好友的微信号,>=1 <=100"""
 
 class GetBreifInfoResponse(Response):
-    data: List[InfoData]
+    data: list[InfoData]
 
 class GetDetailInfoRequest(BaseModel):
     """获取详细信息请求"""
-    wxids: List[str]
+    wxids: list[str]
     """好友的微信号,>=1 <=20"""
 
 class GetDetailInfoResponse(Response):
-    data: List[InfoData]
+    data: list[InfoData]
 
 class SetFriendPermissionsRequest(BaseModel):
     """设置好友权限请求"""
@@ -129,17 +138,17 @@ class SetFriendRemarkRequest(BaseModel):
 
 class GetPhoneAddressListRequest(BaseModel):
     """获取手机通讯录请求"""
-    phones: Optional[List[str]] = None
+    phones: Optional[list[str]] = None
     """获取哪些手机号的好友详情, 不传获取所有"""
 
 class GetPhoneAddressListResponse(Response):
-    data: List[InfoData]
+    data: list[InfoData]
 
 # 群模块
 
 class createChatroomRequest(BaseModel):
     """创建群聊请求"""
-    wxids: List[str]
+    wxids: list[str]
     """群聊成员的微信号,>=2"""
 
 class createChatroomData(BaseModel):
@@ -244,7 +253,7 @@ class getChatroomInfoData(BaseModel):
     """群主的wxid"""
     smallHeadImgUrl: int
     """群头像链接"""
-    memberList: List[ChatroomMemberInfo]
+    memberList: list[ChatroomMemberInfo]
     """群成员信息"""
 
 class getChatroomInfoResponse(Response):
@@ -257,11 +266,11 @@ class getChatroomMemberListRequest(BaseModel):
     
 class getChatroomMemberListData(BaseModel):
     """获取群成员列表数据"""
-    memberList: List[ChatroomMemberInfo]
+    memberList: list[ChatroomMemberInfo]
     """群成员信息"""
     chatroomOwner: Optional[str] = None
     """群主wxid"""
-    adminWxid: Optional[List[Dict[str, str]]] = None
+    adminWxid: Optional[list[dict[str, str]]] = None
     """管理员wxid"""
     
 class getChatroomMemberListResponse(Response):
@@ -271,7 +280,7 @@ class getChatroomMemberDetailRequest(BaseModel):
     """获取群成员详情请求"""
     chatroomId: str
     """群聊ID"""
-    memberWxids: List[str]
+    memberWxids: list[str]
     """成员的wxid"""
 
 class MemberDetail(BaseModel):
@@ -316,7 +325,7 @@ class MemberDetail(BaseModel):
     """省份"""
     city: Optional[str] = None
     """城市"""
-    phoneNumList: Optional[List[str]] = None
+    phoneNumList: Optional[list[str]] = None
     """手机号码"""
     friendUserName: Optional[str] = None
     """好友wxid"""
@@ -326,7 +335,7 @@ class MemberDetail(BaseModel):
     """标识"""
 
 class getChatroomMemberDetailResponse(Response):
-    data: List[MemberDetail]
+    data: list[MemberDetail]
 
 class getChatroomAnnouncementRequest(BaseModel):
     """获取群公告请求"""
@@ -408,7 +417,7 @@ class adminOperateRequest(BaseModel):
     """群聊ID"""
     operType: str
     """操作类型 1: 添加群管理(可添加多个微信号) 2: 删除群管理(可删除多个) 3: 转让(只能转让一个微信号)"""
-    wxids: List[str]
+    wxids: list[str]
     """操作对象的wxid"""
 
 class pinChatRequest(BaseModel):
@@ -445,7 +454,7 @@ class roomAccessApplyCheckApproveRequest(BaseModel):
     """群申请审核"""
     chatroomId: str
     """群聊ID"""
-    wnewMsgIdxid: str
+    newMsgId: str
     """消息ID"""
     msgContent: str
     """消息内容"""
@@ -464,6 +473,14 @@ class messageResponseData(BaseModel):
     """新消息ID"""
     type: Optional[int] = None
     """消息类型"""
+
+    if PYDANTIC_V2:
+        model_config = ConfigDict(extra="allow")  # type: ignore
+    else:
+
+        class Config:
+            extra = "allow"
+
 
 class revokeMsgRequest(BaseModel):
     """撤回消息请求"""
@@ -500,7 +517,8 @@ class postTextRequest(BaseModel):
     ats: str = ""
     """@好友列表, 多个逗号分隔, 群主或管理员@全部的人，则填写'notify@all'"""
 
-class postTextResponse(Response):
+class postMessageResponse(Response):
+    """通用的消息响应"""
     data: messageResponseData
 
 class postImageRequest(BaseModel):
@@ -720,7 +738,7 @@ class delLabelRequest(BaseModel):
 
 class getLabelListData(BaseModel):
     """获取标签列表数据"""
-    labelList: List[Label]
+    labelList: list[Label]
     """标签列表"""
 
 class getLabelListResponse(Response):
@@ -730,7 +748,7 @@ class modifyMemberListRequest(BaseModel):
     """修改好友标签,每次在修改时都需要进行全量修改"""
     labelIds: str
     """标签ID, 多个逗号分隔"""
-    wxIds: List[str]
+    wxIds: list[str]
     """好友wxid"""
 
 # 个人模块
@@ -795,7 +813,7 @@ class SafetyInfoData(BaseModel):
 
 class getSafetyInfoData(BaseModel):
     """获取设备记录请求"""
-    list: List[SafetyInfoData]
+    list: list[SafetyInfoData]
 
 class getSafetyInfoResponse(Response):
     data: getSafetyInfoData
@@ -869,7 +887,7 @@ class syncFavorRequest(BaseModel):
 
 class syncFavorData(BaseModel):
     syncKey: str
-    list: Optional[List[FavorFold]] = None
+    list_: Optional[list[FavorFold]] = Field(default=None, alias="list")
 
 class syncFavorResponse(Response):
     data: syncFavorData

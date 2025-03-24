@@ -6,8 +6,9 @@ from typing_extensions import override
 
 from nonebot.adapters import Bot as BaseBot
 from nonebot.message import handle_event
+from nonebot.drivers import Response as HttpResponse
 from nonebot.compat import type_validate_python, model_dump
-from nonebot.adapters.gewechat.event import Event
+
 from .message import Message, MessageSegment
 from .event import Event, MessageEvent, TextMessageEvent, ImageMessageEvent
 from .utils import log, resp_json
@@ -97,7 +98,7 @@ class Bot(BaseBot):
         # 调用 handle_event 让 NoneBot 对事件进行处理
         await handle_event(self, event)
 
-    async def call_api(self, api: str, **data: Any) -> Response:
+    async def call_api(self, api: str, **data: Any) -> HttpResponse:
         if not data.get("appId"):
             data["appId"] = self.config.appid
         return await self.adapter._do_call_api(api, **data)
@@ -108,7 +109,7 @@ class Bot(BaseBot):
         event: Event,
         message: Union[str, Message, MessageSegment],
         **kwargs,
-    ) -> Any:
+    ) -> list[postMessageResponse]:
         try:
             toWxid = getattr(event, "FromUserName")
         except AttributeError:
@@ -122,8 +123,9 @@ class Bot(BaseBot):
 
             tasks.append(self.call_api(api, **data))
 
-        return await asyncio.gather(*tasks)
-    
+        resps = await asyncio.gather(*tasks)
+        return [type_validate_python(postMessageResponse, resp_json(resp)) for resp in resps]
+
     async def check_online(self) -> bool:
         """检查是否在线"""
         return resp_json(await self.call_api("/login/checkOnline"))['data']
@@ -167,7 +169,7 @@ class Bot(BaseBot):
         v4: 通过搜索或回调消息获取到的v4
         content: 添加好友时的招呼语
         """
-        request = AddContactRequest(scene=scene, option=option, v3=v3, v4=v4, content=content)
+        request = AddContactRequest(scene=str(scene), option=str(option), v3=v3, v4=v4, content=content)
         return type_validate_python(Response, resp_json(await self.call_api("/contacts/addContacts", **model_dump(request))))
     
     async def deleteFriend(self, wxid: str) -> Response:
@@ -178,7 +180,7 @@ class Bot(BaseBot):
         request = DeleteFriendRequest(wxid=wxid)
         return type_validate_python(Response, resp_json(await self.call_api("/contacts/deleteFriend", **model_dump(request))))
     
-    async def uploadPhoneAddressList(self, phones: List[str], opType: int) -> Response:
+    async def uploadPhoneAddressList(self, phones: list[str], opType: int) -> Response:
         """
         上传手机通讯录
         phones: 需要上传的手机号
@@ -187,7 +189,7 @@ class Bot(BaseBot):
         request = uploadPhoneAddressRequest(phones=phones, opType=opType)
         return type_validate_python(Response, resp_json(await self.call_api("/contacts/uploadPhoneAddressList", **model_dump(request))))
     
-    async def getBreifInfo(self, wxids: List[str]) -> GetBreifInfoResponse:
+    async def getBreifInfo(self, wxids: list[str]) -> GetBreifInfoResponse:
         """
         获取联系人简要信息
         wxids: 好友的wxid(>=1, <=100)
@@ -198,7 +200,7 @@ class Bot(BaseBot):
         return type_validate_python(GetBreifInfoResponse, resp_json(await self.call_api("/contacts/getBriefInfo", **model_dump(request))))
 
 
-    async def getDetailInfo(self, wxids: List[str]) -> GetDetailInfoResponse:
+    async def getDetailInfo(self, wxids: list[str]) -> GetDetailInfoResponse:
         """
         获取联系人详细信息
         wxid: 好友的wxid(>=1, <=20)
@@ -226,7 +228,7 @@ class Bot(BaseBot):
         request = SetFriendRemarkRequest(wxid=wxid, remark=remark)
         return type_validate_python(Response, resp_json(await self.call_api("/contacts/setFriendRemark", **model_dump(request))))
     
-    async def getPhoneAddressList(self, phones: Optional[List[str]] = None) -> GetPhoneAddressListResponse:
+    async def getPhoneAddressList(self, phones: Optional[list[str]] = None) -> GetPhoneAddressListResponse:
         """
         获取手机通讯录
         phones: 获取哪些手机号的好友详情, 不传获取所有
@@ -234,7 +236,7 @@ class Bot(BaseBot):
         request = GetPhoneAddressListRequest(phones=phones)
         return type_validate_python(GetPhoneAddressListResponse, resp_json(await self.call_api("/contacts/getPhoneAddressList"), **model_dump(request)))
     
-    async def createChatroom(self, wxids: List[str]) -> createChatroomResponse:
+    async def createChatroom(self, wxids: list[str]) -> createChatroomResponse:
         """
         创建群聊
         wxids: 群聊成员的wxid(>=2)
@@ -271,7 +273,7 @@ class Bot(BaseBot):
         request = modifyChatroomNickNameForSelfRequest(chatroomId=chatroomId, nickName=nickName)
         return type_validate_python(Response, resp_json(await self.call_api("/group/modifyChatroomNickNameForSelf", **model_dump(request))))
 
-    async def inviteMember(self, chatroomId: str, wxids: List[str], reason: str) -> Response:
+    async def inviteMember(self, chatroomId: str, wxids: list[str], reason: str) -> Response:
         """
         邀请好友入群
         chatroomId: 群聊id
@@ -281,7 +283,7 @@ class Bot(BaseBot):
         request = inviteMemberRequest(chatroomId=chatroomId, wxids=",".join(wxids), reason=reason)
         return type_validate_python(Response, resp_json(await self.call_api("/group/inviteMember", **model_dump(request))))
     
-    async def removeMember(self, chatroomId: str, wxids: List[str]) -> Response:
+    async def removeMember(self, chatroomId: str, wxids: list[str]) -> Response:
         """
         移除群成员
         chatroomId: 群聊id
@@ -322,7 +324,7 @@ class Bot(BaseBot):
         request = getChatroomMemberListRequest(chatroomId=chatroomId)
         return type_validate_python(getChatroomMemberListResponse, resp_json(await self.call_api("/group/getChatroomMemberList", **model_dump(request))))
     
-    async def getChatroomMemberDetail(self, chatroomId: str, memberWxids: List[str]) -> getChatroomMemberDetailResponse:
+    async def getChatroomMemberDetail(self, chatroomId: str, memberWxids: list[str]) -> getChatroomMemberDetailResponse:
         """
         获取群聊成员详细信息
         chatroomId: 群聊id
@@ -374,7 +376,7 @@ class Bot(BaseBot):
         request = getChatroomQrCodeRequest(chatroomId=chatroomId)
         return type_validate_python(getChatroomQrCodeResponse, resp_json(await self.call_api("/group/getChatroomQrCode", **model_dump(request))))
     
-    async def saveContractList(self, chatroomId: str, operType: str) -> Response:
+    async def saveContractList(self, chatroomId: str, operType: int) -> Response:
         """
         保存群聊到通讯录
         chatroomId: 群聊id
@@ -383,7 +385,7 @@ class Bot(BaseBot):
         request = saveContractListRequest(chatroomId=chatroomId, operType=operType)
         return type_validate_python(Response, resp_json(await self.call_api("/group/saveContractList", **model_dump(request))))
     
-    async def adminOperate(self, chatroomId: str, operType: str, wxids: List[str]) -> Response:
+    async def adminOperate(self, chatroomId: str, operType: str, wxids: list[str]) -> Response:
         """
         群管理员操作
         chatroomId: 群聊id
@@ -448,7 +450,7 @@ class Bot(BaseBot):
         request = downloadImageRequest(xml=xml, type=type)
         return type_validate_python(downloadImageResponse, resp_json(await self.call_api("/message/downloadImage", **model_dump(request))))
     
-    async def postText(self, toWxid: str, content: str, at_list: Optional[List[str]] = None) -> postTextResponse:
+    async def postText(self, toWxid: str, content: str, at_list: Optional[list[str]] = None) -> postMessageResponse:
         """
         发送文本消息
         toWxid: 好友/群的ID
@@ -457,7 +459,7 @@ class Bot(BaseBot):
         """
         ats = ",".join(at_list or [])
         request = postTextRequest(toWxid=toWxid, content=content, ats=ats)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postText", **model_dump(request))))
+        return type_validate_python(postMessageResponse, resp_json(await self.call_api("/message/postText", **model_dump(request))))
     
     async def postFile(self, toWxid: str, fileUrl: str, fileName: str) -> postFileResponse:
         """
@@ -467,7 +469,7 @@ class Bot(BaseBot):
         fileName: 文件名
         """
         request = postFileRequest(toWxid=toWxid, fileUrl=fileUrl, fileName=fileName)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postFile", **model_dump(request))))
+        return type_validate_python(postFileResponse, resp_json(await self.call_api("/message/postFile", **model_dump(request))))
     
     async def postImage(self, toWxid: str, imgUrl: str) -> postImageResponse:
         """
@@ -476,7 +478,7 @@ class Bot(BaseBot):
         imgUrl: 图片url
         """
         request = postImageRequest(toWxid=toWxid, imgUrl=imgUrl)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postImage", **model_dump(request))))
+        return type_validate_python(postImageResponse, resp_json(await self.call_api("/message/postImage", **model_dump(request))))
     
     async def postVoice(self, toWxid: str, voiceUrl: str, voiceDuration: int) -> postVoiceResponse:
         """
@@ -486,7 +488,7 @@ class Bot(BaseBot):
         voiceDuration: 语音时长,单位毫秒
         """
         request = postVoiceRequest(toWxid=toWxid, voiceUrl=voiceUrl, voiceDuration=voiceDuration)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postVoice", **model_dump(request))))
+        return type_validate_python(postVoiceResponse, resp_json(await self.call_api("/message/postVoice", **model_dump(request))))
 
     async def postVideo(self, toWxid: str, videoUrl: str, thumbUrl: str, videoDuration: int) -> postVideoResponse:
         """
@@ -497,7 +499,7 @@ class Bot(BaseBot):
         videoDuration: 视频时长,单位秒
         """
         request = postVideoRequest(toWxid=toWxid, videoUrl=videoUrl, thumbUrl=thumbUrl, videoDuration=videoDuration)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postVideo", **model_dump(request))))
+        return type_validate_python(postVideoResponse, resp_json(await self.call_api("/message/postVideo", **model_dump(request))))
     
     async def postLink(self, toWxid: str, title: str, desc: str, linkUrl: str, thumbUrl: str) -> postLinkResponse:
         """
@@ -509,7 +511,7 @@ class Bot(BaseBot):
         thumbUrl: 链接图片url
         """
         request = postLinkRequest(toWxid=toWxid, title=title, desc=desc, linkUrl=linkUrl, thumbUrl=thumbUrl)
-        return type_validate_python(Response, resp_json(await self.call_api("/message/postLink", **model_dump(request))))
+        return type_validate_python(postLinkResponse, resp_json(await self.call_api("/message/postLink", **model_dump(request))))
     
     async def postNameCard(self, toWxid: str, nickName: str, nameCardWxid: str) -> postNameCardResponse:
         """
@@ -521,7 +523,7 @@ class Bot(BaseBot):
         request = postNameCardRequest(toWxid=toWxid, nickName=nickName, nameCardWxid=nameCardWxid)
         return type_validate_python(postNameCardResponse, resp_json(await self.call_api("/message/postNameCard", **model_dump(request))))
 
-    async def postEmoji(self, toWxid: str, emojiMd5: str, emojiSize: str) -> postEmojiResponse:
+    async def postEmoji(self, toWxid: str, emojiMd5: str, emojiSize: int) -> postEmojiResponse:
         """
         发送表情
         toWxid: 好友/群的ID
@@ -609,7 +611,7 @@ class Bot(BaseBot):
         request = addLabelRequest(labelName=labelName)
         return type_validate_python(addLabelResponse, resp_json(await self.call_api("/label/add", **model_dump(request))))
     
-    async def delLabelRequest(self, labels: List[str]) -> Response:
+    async def delLabelRequest(self, labels: list[str]) -> Response:
         """
         删除标签
         labels: 标签id列表
@@ -623,7 +625,7 @@ class Bot(BaseBot):
         """
         return type_validate_python(getLabelListResponse, resp_json(await self.call_api("/label/list")))
     
-    async def modifyMemberList(self, labelIds: List[str], wxIds: List[str]) -> Response:
+    async def modifyMemberList(self, labelIds: list[str], wxIds: list[str]) -> Response:
         """
         修改标签
         labelIds: 标签id列表

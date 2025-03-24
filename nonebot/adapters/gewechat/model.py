@@ -1,6 +1,8 @@
 from enum import Enum
-from pydantic import BaseModel
 from typing import Optional, Union
+
+from pydantic import BaseModel
+
 
 class TypeName(str, Enum):
     Test = "Test"
