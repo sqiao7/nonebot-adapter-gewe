@@ -87,6 +87,7 @@ class Bot(BaseBot):
         # 检查事件是否有回复消息, 调用平台 API 获取原始消息的消息内容
         if isinstance(event, MessageEvent):
             if isinstance(event, TextMessageEvent):
+                await event.get_ats_wxid(self)
                 check_at_me(self, event)
                 check_nickname(self, event)
             elif isinstance(event, ImageMessageEvent):

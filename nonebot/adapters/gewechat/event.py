@@ -248,6 +248,14 @@ class TextMessageEvent(MessageEvent):
         self.original_message = Message(self.data["Data"]["Content"]["string"])
         return self
 
+    async def get_ats_wxid(self, bot: "Bot"):
+        if self.message.has("at"):
+            members = (await bot.getChatroomMemberList(self.FromUserName)).data.memberList
+            for member in members:
+                for at in self.message.include("at"):
+                    if at.data["wxid"] == member.displayName or at.data["wxid"] == member.nickName:
+                        at.data["wxid"] = member.wxid
+
 
 class ImageMessageEvent(MessageEvent):
     """
