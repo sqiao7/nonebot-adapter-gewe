@@ -1,6 +1,6 @@
 from enum import Enum
 from pydantic import BaseModel
-from typing import Optional, Dict, Union, List
+from typing import Optional, Union
 
 class TypeName(str, Enum):
     Test = "Test"
@@ -74,24 +74,24 @@ class CustomizedInfo(BaseModel):
     BrandFlag: int
 
 class AdditionalContactList(BaseModel):
-    LinkedinContactItem: Optional[Dict[str, Dict]] = {}
+    LinkedinContactItem: Optional[dict[str, dict]] = {}
 
 class ModContactsData(BaseModel):
-    UserName: Union[StringDict, Dict] = {}
-    NickName: Union[StringDict, Dict] = {}
-    PyInitial: Union[StringDict, Dict] = {}
-    QuanPin: Union[StringDict, Dict] = {}
+    UserName: Union[StringDict, dict] = {}
+    NickName: Union[StringDict, dict] = {}
+    PyInitial: Union[StringDict, dict] = {}
+    QuanPin: Union[StringDict, dict] = {}
     Sex: int
     ImgBuf: ImgBuf
     BitMask: int
     BitVal: int
     ImgFlag: int
-    Remark: Optional[Dict] = {}
-    RemarkPyinitial: Optional[Dict] = {}
-    RemarkQuanPin: Optional[Dict] = {}
+    Remark: Optional[dict] = {}
+    RemarkPyinitial: Optional[dict] = {}
+    RemarkQuanPin: Optional[dict] = {}
     ContactType: int
     RoomInfoCount: int
-    DomainList: Optional[List[Dict]] = [{}]
+    DomainList: Optional[list[dict]] = [{}]
     ChatRoomNotify: int
     AddContactScene: int
     PersonalCard: int

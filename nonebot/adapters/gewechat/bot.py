@@ -9,7 +9,7 @@ from nonebot.message import handle_event
 from nonebot.compat import type_validate_python, model_dump
 from nonebot.adapters.gewechat.event import Event
 from .message import Message, MessageSegment
-from .event import Event, TextMessageEvent
+from .event import Event, MessageEvent, TextMessageEvent, ImageMessageEvent
 from .utils import log, resp_json
 from .api_model import *
 
@@ -18,18 +18,48 @@ if TYPE_CHECKING:
     
 
 def check_at_me(bot: "Bot", event: TextMessageEvent):
-    if "notify@all" in event.at_list:
+    if event.message.has("at_all"):
         event.to_me = True
-    if bot.config.nickname:
-        nickname_regex = "|".join(bot.config.nickname)
-        m = re.search(rf"^@({nickname_regex})([\s,, ]*|$)", event.msg, re.IGNORECASE)
-        if m:
-            nickname = m.group(1).strip()
-            log("DEBUG", f"User is at me: {nickname}")
+        event.message = event.message.exclude("at_all")
+    
+    if not event.message:
+        event.message.append(MessageSegment.text(""))
+
+    def _is_at_me_seg(segment: MessageSegment):
+        return segment.type == "at" and str(segment.data.get("wxid", "")) == str(bot.self_id)
+
+    if _is_at_me_seg(event.message[0]):
+        event.to_me = True
+        event.message.pop(0)
+        if event.message and event.message[0].type == "text":
+            event.message[0].data["text"] = event.message[0].data["text"].lstrip()
+            if not event.message[0].data["text"]:
+                event.message.pop(0)
+        if event.message and _is_at_me_seg(event.message[0]):
+            event.message.pop(0)
+            if event.message and event.message[0].type == "text":
+                event.message[0].data["text"] = event.message[0].data["text"].lstrip()
+                if not event.message[0].data["text"]:
+                    event.message.pop(0)
+
+    if not event.to_me:
+        i = -1
+        last_msg_seg = event.message[i]
+        if (
+            last_msg_seg.type == "text"
+            and not last_msg_seg.data["text"].strip()
+            and len(event.message) >= 2
+        ):
+            i -= 1
+            last_msg_seg = event.message[i]
+
+        if _is_at_me_seg(last_msg_seg):
             event.to_me = True
-            loc = m.end()
-            event.msg = event.msg[loc:]
-            event.message[0].data["content"] = event.msg
+            del event.message[i:]
+
+    if not event.message:
+        event.message.append(MessageSegment.text(""))
+
 
 def check_nickname(bot: "Bot", event: TextMessageEvent):
     nicknames = bot.config.nickname
@@ -43,9 +73,6 @@ def check_nickname(bot: "Bot", event: TextMessageEvent):
         event.msg = event.msg[loc:]
         event.message[0].data["content"] = event.msg
 
-def to_me(bot: "Bot", event: TextMessageEvent):
-    check_at_me(bot, event)
-    check_nickname(bot, event)
 
 class Bot(BaseBot):
     """Gewechat Bot 适配"""
@@ -59,8 +86,14 @@ class Bot(BaseBot):
         # 根据需要, 对事件进行某些预处理, 例如：
         # 检查事件是否和机器人有关操作, 去除事件消息首尾的 @bot
         # 检查事件是否有回复消息, 调用平台 API 获取原始消息的消息内容
-        if isinstance(event, TextMessageEvent):
-            to_me(self, event)
+        if isinstance(event, MessageEvent):
+            if isinstance(event, TextMessageEvent):
+                check_at_me(self, event)
+                check_nickname(self, event)
+            elif isinstance(event, ImageMessageEvent):
+                await event.download_image(self)
+            if not event.is_group_message():
+                event.to_me = True
         # 调用 handle_event 让 NoneBot 对事件进行处理
         await handle_event(self, event)
 
@@ -82,33 +115,14 @@ class Bot(BaseBot):
             raise ValueError("该事件不支持发送消息")
         if isinstance(message, str) or isinstance(message, MessageSegment):
             message = Message(message)
+        tasks = []
+        for (api, data) in message.to_payload():
+            data["toWxid"] = toWxid
+            data["appId"] = self.adapter.adapter_config.appid
 
+            tasks.append(self.call_api(api, **data))
 
-        api_map = {
-            "text": "Text",
-            "image": "Image",
-            "file": "File",
-            "video": "Video",
-            "voice": "Voice",
-            "emoji": "Emoji",
-            "namecard": "NameCard",
-            "appmsg": "AppMsg",
-            "mp": "MiniApp"
-        }
-
-        msg_list = []
-        for segment in message:
-            if "forward" in segment.type:
-                api = f"/message/{segment.type}"
-            else:
-                api = f"/message/post{api_map[segment.type]}"
-
-            segment.data["toWxid"] = toWxid
-            segment.data["appId"] = self.adapter.adapter_config.appid
-
-            msg_list.append(self.call_api(api, **segment.data))
-
-        return await asyncio.gather(*msg_list)
+        return await asyncio.gather(*tasks)
     
     async def check_online(self) -> bool:
         """检查是否在线"""
@@ -129,7 +143,7 @@ class Bot(BaseBot):
         cache: 是否使用缓存, 默认为 False
         """
         if cache:
-            self.call_api("/contacts/fetchContactsListCache")
+            await self.call_api("/contacts/fetchContactsListCache")
         return type_validate_python(ContactListResponse, resp_json(await self.call_api("/contacts/fetchContactsList")))
 
     async def search(self, keyword: str) -> SearchResponse:
@@ -264,8 +278,7 @@ class Bot(BaseBot):
         wxids: 好友wxid
         reason: 邀请理由
         """
-        wxids = ",".join(wxids)
-        request = inviteMemberRequest(chatroomId=chatroomId, wxids=wxids, reason=reason)
+        request = inviteMemberRequest(chatroomId=chatroomId, wxids=",".join(wxids), reason=reason)
         return type_validate_python(Response, resp_json(await self.call_api("/group/inviteMember", **model_dump(request))))
     
     async def removeMember(self, chatroomId: str, wxids: List[str]) -> Response:
@@ -274,8 +287,7 @@ class Bot(BaseBot):
         chatroomId: 群聊id
         wxids: 好友wxid
         """
-        wxids = ",".join(wxids)
-        request = removeMemberRequest(chatroomId=chatroomId, wxids=wxids)
+        request = removeMemberRequest(chatroomId=chatroomId, wxids=",".join(wxids))
         return type_validate_python(Response, resp_json(await self.call_api("/group/removeMember", **model_dump(request))))
     
     async def quitChatroom(self, chatroomId: str) -> Response:
@@ -436,14 +448,14 @@ class Bot(BaseBot):
         request = downloadImageRequest(xml=xml, type=type)
         return type_validate_python(downloadImageResponse, resp_json(await self.call_api("/message/downloadImage", **model_dump(request))))
     
-    async def postText(self, toWxid: str, content: str, ats: List[str] = []) -> postTextResponse:
+    async def postText(self, toWxid: str, content: str, at_list: Optional[List[str]] = None) -> postTextResponse:
         """
         发送文本消息
         toWxid: 好友/群的ID
         content: 文本内容
-        ats: @的用户列表
+        at_list: @的用户列表
         """
-        ats = ",".join(ats)
+        ats = ",".join(at_list or [])
         request = postTextRequest(toWxid=toWxid, content=content, ats=ats)
         return type_validate_python(Response, resp_json(await self.call_api("/message/postText", **model_dump(request))))
     
@@ -602,8 +614,7 @@ class Bot(BaseBot):
         删除标签
         labels: 标签id列表
         """
-        labels = ",".join(labels)
-        request = delLabelRequest(labels=labels)
+        request = delLabelRequest(labels=",".join(labels))
         return type_validate_python(Response, resp_json(await self.call_api("/label/delete", **model_dump(request))))
     
     async def getLabelList(self) -> getLabelListResponse:
@@ -618,8 +629,7 @@ class Bot(BaseBot):
         labelIds: 标签id列表
         wxid: 好友id
         """
-        labelIds = ",".join(labelIds)
-        request = modifyMemberListRequest(labelIds=labelIds, wxIds=wxIds)
+        request = modifyMemberListRequest(labelIds=",".join(labelIds), wxIds=wxIds)
         return type_validate_python(Response, resp_json(await self.call_api("/label/modifyMemberList", **model_dump(request))))
     
     async def getProfile(self) -> getProfileResponse:
