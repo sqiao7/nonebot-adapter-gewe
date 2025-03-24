@@ -278,7 +278,7 @@ class ImageMessageEvent(MessageEvent):
         self.original_message = deepcopy(self.message)
         return self
     
-    async def download_image(self, bot: Bot):
+    async def download_image(self, bot: "Bot"):
         """异步下载图片并更新消息内容"""
         try:
             image_url = (await bot.downloadImage(self.raw_msg, 1)).data.fileUrl
