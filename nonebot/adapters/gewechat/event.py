@@ -900,6 +900,8 @@ class PokeEvent(NoticeEvent):
     """消息发送人的wxid"""
     ToUserName: str
     """消息接收人的wxid"""
+    UserId: str
+    """被拍人的wxid"""
 
     @override
     @staticmethod
@@ -925,9 +927,12 @@ class PokeEvent(NoticeEvent):
         data = obj["data"]["Data"]
         ToUserName: str = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
+        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        UserId = root.find('.//fromusername').text
         obj.update({
             "ToUserName": ToUserName,
-            "raw_msg": raw_msg
+            "raw_msg": raw_msg,
+            "UserId": UserId
         })
         return type_validate_python(cls, obj)
 
