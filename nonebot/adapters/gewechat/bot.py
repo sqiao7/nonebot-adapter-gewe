@@ -64,14 +64,13 @@ def check_at_me(bot: "Bot", event: TextMessageEvent):
 def check_nickname(bot: "Bot", event: TextMessageEvent):
     nicknames = bot.config.nickname
     nickname_regex = "|".join(nicknames)
-    m = re.search(rf"^({nickname_regex})([\s,, ]*|$)", event.msg, re.IGNORECASE)
+    m = re.search(rf"^({nickname_regex})([\s,, ]*|$)", event.message[0].data["text"], re.IGNORECASE)
     if m:
         nickname = m.group(1).strip()
         log("DEBUG", f"User is calling me: {nickname}")
         event.to_me = True
         loc = m.end()
-        event.msg = event.msg[loc:]
-        event.message[0].data["content"] = event.msg
+        event.message[0].data["text"] = event.message[0].data["text"][loc:]
 
 
 class Bot(BaseBot):
