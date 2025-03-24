@@ -70,7 +70,7 @@ def check_nickname(bot: "Bot", event: TextMessageEvent):
         log("DEBUG", f"User is calling me: {nickname}")
         event.to_me = True
         loc = m.end()
-        event.message[0].data["text"] = event.message[0].data["text"][loc:]
+        event.message.include("text")[0].data["text"] = event.message.include("text")[0].data["text"][loc:]
 
 
 class Bot(BaseBot):
