@@ -897,11 +897,11 @@ class PokeEvent(NoticeEvent):
     raw_msg: str = ""
     """原始消息,xml格式"""
     FromUserName: str
-    """消息发送人的wxid"""
+    """消息发送人/群聊的wxid"""
     ToUserName: str
     """消息接收人的wxid"""
     UserId: str
-    """被拍人的wxid"""
+    """拍一拍发起人的wxid"""
 
     @override
     @staticmethod
