@@ -4,13 +4,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Union, Optional, Final
 from typing_extensions import override
 
-from pydantic import BaseModel
 from nonebot import get_driver
 from nonebot.adapters import Event as BaseEvent
 from nonebot.compat import model_dump, type_validate_python, model_validator
 from nonebot.log import logger
 
-from .model import TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
+from .model import FriendRequestOption, TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
 from .model import Message as RawMessage
 from .message import Message, MessageSegment
 from .utils import remove_prefix_tag, get_sender
@@ -40,7 +39,7 @@ class Event(BaseEvent):
     @classmethod
     def parse_event(cls, data: Union[TestMessage, RawMessage]) -> "Event":
 
-        sub_event: list[Event] = [
+        sub_event = [
             MessageEvent,
             NoticeEvent,
             RequestEvent,
@@ -171,9 +170,9 @@ class MessageEvent(Event):
             "ToUserName": ToUserName,
             "UserId": UserId,
         })
-        event: "MessageEvent" = type_validate_python(cls, obj)
+        event = type_validate_python(cls, obj)
 
-        sub_event: list[MessageEvent] = [
+        sub_event = [
             TextMessageEvent,
             ImageMessageEvent,
             VoiceMessageEvent,
@@ -199,7 +198,7 @@ class MessageEvent(Event):
                     event = type_validate_python(event_type, obj)
                 break
 
-        return event
+        return event  # type: ignore
 
     @override
     def get_message(self) -> Message:
@@ -236,7 +235,6 @@ class TextMessageEvent(MessageEvent):
     def type_validator(event: MessageEvent) -> bool:
         return event.MsgType == MessageType.Text
     
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TextMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -268,7 +266,6 @@ class ImageMessageEvent(MessageEvent):
     ImgBuf: ImgBuf
     """图片数据,有的图片可能没有"""
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "ImageMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -311,7 +308,6 @@ class VoiceMessageEvent(MessageEvent):
     ImgBuf: ImgBuf
     """语音数据,有的语音可能没有"""
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VoiceMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -342,7 +338,6 @@ class LocationMessageEvent(MessageEvent):
     raw_msg: str = ""
     """原始消息,xml格式,可用于下载"""
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "LocationMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -378,7 +373,6 @@ class VideoMessageEvent(MessageEvent):
     def type_validator(event: MessageEvent) -> bool:
         return event.MsgType == MessageType.Video
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VideoMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -408,7 +402,6 @@ class EmojiMessageEvent(MessageEvent):
     md5_size: int
     """表情包大小,可用于发送"""
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "EmojiMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -463,7 +456,6 @@ class PublicLinkMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "PublicLinkMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -505,7 +497,6 @@ class FileUploadingMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "FileUploadingMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -547,7 +538,6 @@ class FileMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "FileMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -579,7 +569,6 @@ class NamecardMessageEvent(MessageEvent):
     def type_validator(event: MessageEvent) -> bool:
         return event.sub_type == MessageType.NameCard
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "NamecardMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -620,7 +609,6 @@ class MiniProgramMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "MiniProgramMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -661,7 +649,6 @@ class QuoteMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "QuoteMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -702,7 +689,6 @@ class TransferMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TransferMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -743,7 +729,6 @@ class RedPactMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "RedPactMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -784,7 +769,6 @@ class VideoChannelMessageEvent(MessageEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "VideoChannelMessageEvent":
         obj = deepcopy(model_dump(event))
@@ -847,7 +831,7 @@ class NoticeEvent(Event):
 
         event = type_validate_python(cls, obj)
 
-        sub_event: list[NoticeEvent] = [
+        sub_event = [
             PokeEvent,
             RevokeEvent,
             GroupRemovedEvent,
@@ -871,7 +855,7 @@ class NoticeEvent(Event):
                     event = type_validate_python(event_type, obj)
                 break
 
-        return event
+        return event  # type: ignore
 
     @override
     def get_user_id(self) -> str:
@@ -898,7 +882,7 @@ class PokeEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """消息发送人/群聊的wxid"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
     UserId: str
     """拍一拍发起人的wxid"""
@@ -920,7 +904,6 @@ class PokeEvent(NoticeEvent):
             return True
         return False
     
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "PokeEvent":
         obj = deepcopy(model_dump(event))
@@ -946,7 +929,7 @@ class RevokeEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """消息发送(撤回)人的wxid"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -965,7 +948,6 @@ class RevokeEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "RevokeEvent":
         obj = deepcopy(model_dump(event))
@@ -988,7 +970,7 @@ class GroupRemovedEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人(当前账号)的wxid"""
 
     @override
@@ -1003,7 +985,6 @@ class GroupRemovedEvent(NoticeEvent):
             return True
         return False
     
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupRemovedEvent":
         obj = deepcopy(model_dump(event))
@@ -1026,7 +1007,7 @@ class GroupMemberRemovedEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人(被踢出人)的wxid"""
 
     @override
@@ -1047,7 +1028,6 @@ class GroupMemberRemovedEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupMemberRemovedEvent":
         obj = deepcopy(model_dump(event))
@@ -1070,7 +1050,7 @@ class GroupDismissedEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -1091,7 +1071,6 @@ class GroupDismissedEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupDismissedEvent":
         obj = deepcopy(model_dump(event))
@@ -1115,7 +1094,7 @@ class GroupTitleChangeEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -1130,7 +1109,6 @@ class GroupTitleChangeEvent(NoticeEvent):
             return True
         return False
     
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupTitleChangeEvent":
         obj = deepcopy(model_dump(event))
@@ -1155,7 +1133,7 @@ class GroupOwnerChangeEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -1170,7 +1148,6 @@ class GroupOwnerChangeEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupOwnerChangeEvent":
         obj = deepcopy(model_dump(event))
@@ -1211,7 +1188,7 @@ class GroupNoteEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -1230,7 +1207,6 @@ class GroupNoteEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupNoteEvent":
         obj = deepcopy(model_dump(event))
@@ -1253,7 +1229,7 @@ class GroupTodoEvent(NoticeEvent):
     """原始消息,xml格式"""
     FromUserName: str
     """所在群聊的ID"""
-    ToUserName: str
+    ToUserName: str = ""
     """消息接收人的wxid"""
 
     @override
@@ -1272,7 +1248,6 @@ class GroupTodoEvent(NoticeEvent):
             return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: NoticeEvent) -> "GroupTodoEvent":
         obj = deepcopy(model_dump(event))
@@ -1325,7 +1300,7 @@ class GroupQuitEvent(NoticeEvent):
     """
     退出群聊事件
     """
-    sub_type: MessageType = None
+    sub_type: Optional[MessageType] = None
     """消息子类型"""
     FromUserName: str
     """所在群聊的ID"""
@@ -1353,8 +1328,6 @@ class RequestEvent(Event):
     """消息接收人的wxid"""
     raw_msg: str
     """原始消息内容"""
-    flag: dict
-    """消息标识,可用于操作请求"""
 
     @override
     @staticmethod
@@ -1380,44 +1353,19 @@ class RequestEvent(Event):
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg = data["Content"]["string"]
-        flag = {}
         root = ET.fromstring(remove_prefix_tag(raw_msg))
         msg = root.find("msg")
 
-        # 好友请求
-        if data["MsgType"] == MessageType.FriendAdd:
-            scene = msg.get("scene")
-            v3 = msg.get("encryptusername")
-            v4 = msg.get("ticket")
-            flag = FriendRequestData(
-                scene=scene,
-                option=2,
-                v3=v3,
-                v4=v4
-            )
-        # 群聊邀请
-        else:
-            url = msg.find("appmsg").find("url").text
-            start_index = url.find('![CDATA[') + len('![CDATA[')
-            end_index = url.find(']]>')
-            url = data[start_index:end_index]
-            flag = GroupRequestData(
-                url=url
-            )
         
         obj.update({
             "FromUserName": FromUserName,
             "ToUserName": ToUserName,
             "raw_msg": raw_msg,
-            "flag": flag
         })
 
-        event: "RequestEvent" = type_validate_python(cls, obj)
+        event = type_validate_python(cls, obj)
 
-        sub_event: list[RequestEvent] = [
-            FriendRequestEvent,
-            GroupInviteEvent
-        ]
+        sub_event = [FriendRequestEvent, GroupInviteEvent]
 
         for event_type in sub_event:
             if event_type.type_validator(event):
@@ -1427,7 +1375,7 @@ class RequestEvent(Event):
                     event = type_validate_python(event_type, obj)
                 break
 
-        return event
+        return event  # type: ignore
     
     @override
     def get_user_id(self) -> str:
@@ -1443,6 +1391,8 @@ class FriendRequestEvent(RequestEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
+    flag: FriendRequestData
+    """消息标识,可用于操作请求"""
 
     @override
     @staticmethod
@@ -1451,7 +1401,6 @@ class FriendRequestEvent(RequestEvent):
             return True
         return False
     
-    @override
     @classmethod
     def _parse__event(cls, event: RequestEvent) -> "FriendRequestEvent":
         obj = deepcopy(model_dump(event))
@@ -1459,16 +1408,18 @@ class FriendRequestEvent(RequestEvent):
         raw_msg = data["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
         msg = root.find("msg")
+        # 好友请求
         scene = msg.get("scene")
         v3 = msg.get("encryptusername")
         v4 = msg.get("ticket")
         flag = FriendRequestData(
             scene=scene,
-            option=2,
+            option=FriendRequestOption.ADD,
             v3=v3,
-            v4=v4
+            v4=v4,
+            content=msg,  # FIXME: 未知字段
         )
-        obj.update(model_dump(flag))
+        obj.update(flag=flag)
         return type_validate_python(cls, obj)
 
 class GroupInviteEvent(RequestEvent):
@@ -1477,6 +1428,8 @@ class GroupInviteEvent(RequestEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
+    flag: GroupRequestData
+    """消息标识,可用于操作请求"""
 
     @override
     @staticmethod
@@ -1491,7 +1444,6 @@ class GroupInviteEvent(RequestEvent):
                 return True
         return False
 
-    @override
     @classmethod
     def _parse__event(cls, event: RequestEvent) -> "GroupInviteEvent":
         obj = deepcopy(model_dump(event))
@@ -1499,6 +1451,7 @@ class GroupInviteEvent(RequestEvent):
         raw_msg: str = data["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
         msg = root.find("msg")
+        # 群聊邀请
         url = msg.find("appmsg").find("url").text
         start_index = url.find('![CDATA[') + len('![CDATA[')
         end_index = url.find(']]>')
@@ -1506,7 +1459,7 @@ class GroupInviteEvent(RequestEvent):
         flag = GroupRequestData(
             url=url
         )
-        obj.update(model_dump(flag))
+        obj.update(flag=flag)
         return type_validate_python(cls, obj)
 
 
@@ -1521,12 +1474,9 @@ class MetaEvent(Event):
     @classmethod
     def _parse_event(cls, event: Event) -> "RequestEvent":
         obj = deepcopy(model_dump(event))
-        event: "MetaEvent" = type_validate_python(cls, obj)
+        event = type_validate_python(cls, obj)
 
-        sub_event: list[MetaEvent] = [
-            OfflineEvent,
-            TestEvent
-        ]
+        sub_event = [OfflineEvent, TestEvent]
 
         for event_type in sub_event:
             if event_type.type_validator(event):
@@ -1536,7 +1486,7 @@ class MetaEvent(Event):
                     event = type_validate_python(event_type, obj)
                 break
 
-        return event
+        return event  # type: ignore
 
     @override
     @staticmethod

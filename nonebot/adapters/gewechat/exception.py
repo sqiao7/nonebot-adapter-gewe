@@ -18,7 +18,7 @@ class ActionFailed(BaseActionFailed, GewechatAdapterException):
     API 请求返回错误信息。
     """
 
-    def __init__(self, description: str = None):
+    def __init__(self, description = None):
         super().__init__()
         self.description = description
 
@@ -34,7 +34,7 @@ class NetworkError(BaseNetworkError, GewechatAdapterException):
     网络错误。
     """
 
-    def __init__(self, msg: str = None):
+    def __init__(self, msg = None):
         super().__init__()
         self.msg = msg
 
@@ -50,7 +50,7 @@ class ApiNotAvailable(BaseApiNotAvailable, GewechatAdapterException):
     API 不可用。
     """
 
-    def __init__(self, msg: str = None):
+    def __init__(self, msg = None):
         super().__init__()
         self.msg = msg
 

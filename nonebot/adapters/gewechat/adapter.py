@@ -2,7 +2,7 @@ import qrcode
 import asyncio
 import ujson as json
 
-from typing import Any, Optional, List, Dict, Union, Set
+from typing import Any
 from typing_extensions import override
 from pydantic import ValidationError
 
@@ -24,26 +24,40 @@ from nonebot.adapters import Adapter as BaseAdapter
 from .bot import Bot
 from .event import Event
 from .config import Config
-from .message import Message, MessageSegment
+from .message import Message
 from .utils import log, resp_json
 from .model import *
 from .exception import ActionFailed, NetworkError
 
 
 class Adapter(BaseAdapter):
-    token: str = ""
-    tasks: Set[asyncio.Task] = set()
+    bots: dict[str, Bot]
+    tasks: set[asyncio.Task]
 
     @override
     def __init__(self, driver: Driver, **kwargs: Any):
         super().__init__(driver, **kwargs)
+        self.token = ""
         self.adapter_config = get_plugin_config(Config)
+        self.tasks = set()
+        self.setup()
+    
+    def setup(self):
+        if not isinstance(self.driver, HTTPClientMixin):
+            raise RuntimeError(
+                f"Current driver {self.config.driver} does not support "
+                "http client requests! "
+                "Gewechat Adapter need a HTTPClient Driver to work."
+            )
+        if not isinstance(self.driver, ASGIMixin):
+            raise RuntimeError(
+                f"Current driver {self.config.driver} does not support "
+                "ASGI server! "
+                "Gewechat Adapter need a ASGI server Driver to work."
+            )
         self.on_ready(self.startup)
         self.driver.on_shutdown(self.shutdown)
 
-    async def startup(self) -> None:
-        """定义启动时的操作，例如和平台建立连接"""
-        await self.setup()
 
     async def shutdown(self) -> None:
         """定义退出时的操作，例如和平台断开连接"""
@@ -56,7 +70,9 @@ class Adapter(BaseAdapter):
         )
         self.tasks.clear()
 
-    async def setup(self) -> None:
+    async def startup(self) -> None:
+        """定义启动时的操作，例如和平台建立连接"""
+
         await self._setup_http()
         await self._setup_bot()
         # http服务启动后,设置回调地址
@@ -171,7 +187,7 @@ class Adapter(BaseAdapter):
 
     async def get_token(self) -> None:
         """获取token"""
-        data: Dict = resp_json(await self._do_call_api("/tools/getTokenId"))
+        data: dict = resp_json(await self._do_call_api("/tools/getTokenId"))
         if data['ret'] != 200:
             raise NetworkError("获取token失败: " + str(data))
         self.token = data['data']
@@ -182,7 +198,7 @@ class Adapter(BaseAdapter):
         if re.status_code != 200:
             raise ActionFailed(f"调用API失败: {re.status_code}")
         else:
-            content = json.loads(re.content.decode("utf-8"))
+            content = json.loads(re.content.decode("utf-8"))  # type: ignore
             if content["ret"] != 200:
                 raise ActionFailed(f"调用API失败: {str(content)}")
             else:
@@ -202,7 +218,7 @@ class Adapter(BaseAdapter):
             headers=headers
         )
 
-        re = await self.driver.request(request)
+        re = await self.request(request)
         # 如果请求失败, 重新获取token并重试
         if re.status_code != 200:
             await self.get_token()
@@ -218,7 +234,7 @@ class Adapter(BaseAdapter):
                 json=data,
                 headers=headers
             )
-            re = await self.driver.request(request)
+            re = await self.request(request)
         return re
 
     async def _handle_http(self, request: Request) -> Response:
@@ -226,7 +242,7 @@ class Adapter(BaseAdapter):
         return Response(200)
 
     @classmethod
-    def payload_to_event(cls, payload: Dict[str, Any], adapter: "Adapter") -> Event:
+    def payload_to_event(cls, payload: dict[str, Any], adapter: "Adapter"):
         """
         转换Event
         当payload无法转换为Event时, 返回None
@@ -251,7 +267,7 @@ class Adapter(BaseAdapter):
         return event
 
 
-    async def _forward(self, bot: Bot, payload: Dict):
+    async def _forward(self, bot: Bot, payload: dict):
         event = self.payload_to_event(payload, bot.adapter)
         # 让 bot 对事件进行处理
         if event:
