@@ -14,7 +14,7 @@ def resp_json(resp: Response) -> dict:
     """
     return json.loads(resp.content.decode("utf-8"))
 
-def get_sender(xml: str) -> str:
+def get_sender_from_xml(xml: str) -> str:
     """
     获取发送者的wxid
     """

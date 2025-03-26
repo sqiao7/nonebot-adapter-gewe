@@ -12,7 +12,7 @@ from nonebot.log import logger
 from .model import FriendRequestOption, TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
 from .model import Message as RawMessage
 from .message import Message, MessageSegment
-from .utils import remove_prefix_tag, get_sender
+from .utils import remove_prefix_tag, get_sender_from_xml
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -162,7 +162,7 @@ class MessageEvent(Event):
         data = obj["data"]["Data"]
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
-        UserId = get_sender(data["Content"]["string"])
+        UserId: str = get_sender_from_xml(data["Content"]["string"])
         data["Content"]["string"] = remove_prefix_tag(data["Content"]["string"])
         obj.update(data)
         obj.update({
@@ -174,6 +174,7 @@ class MessageEvent(Event):
 
         sub_event = [
             TextMessageEvent,
+            GroupNoteTextMessageEvent,
             ImageMessageEvent,
             VoiceMessageEvent,
             LocationMessageEvent,
@@ -254,6 +255,52 @@ class TextMessageEvent(MessageEvent):
                     if at.data["wxid"] == member.displayName or at.data["wxid"] == member.nickName:
                         at.data["wxid"] = member.wxid
 
+class GroupNoteTextMessageEvent(MessageEvent):
+    """
+    群公告文本消息事件
+    """
+    sub_type: MessageType = MessageType.AppMsg
+    """消息子类型"""
+
+    @override
+    @staticmethod
+    def type_validator(event: MessageEvent) -> bool:
+        raw_msg: str = event.data["Data"]["Content"]["string"]
+        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        if root.tag != "msg":
+            return False
+        if root.find("appmsg") is None:
+            return False
+        type_ = root.find("appmsg").find("type").text
+        if int(type_) == AppType.GroupNote.value:
+            return True
+        return False
+    
+    @classmethod
+    def _parse__event(cls, event: MessageEvent) -> "GroupNoteTextMessageEvent":
+        obj = deepcopy(model_dump(event))
+        return type_validate_python(cls, obj)
+
+    @model_validator(mode="after")
+    def post_process(self):
+        raw_msg = self.data["Data"]["Content"]["string"]
+        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        datadesc = raw_msg
+        announcement_element = root.find('.//appmsg/announcement')
+        if announcement_element is not None:
+            announcement_xml = announcement_element.text
+
+            # 解析 announcement 中的 XML 数据
+            nested_root = ET.fromstring(announcement_xml)
+
+            # 找到 datadesc 元素并获取其内容
+            datadesc_element = nested_root.find('.//datalist/dataitem[@datatype="1"]/datadesc')
+            if datadesc_element is not None:
+                datadesc = datadesc_element.text
+        self.message = Message(datadesc)
+        self.original_message = Message(datadesc)
+        return self
+
 
 class ImageMessageEvent(MessageEvent):
     """
@@ -276,7 +323,7 @@ class ImageMessageEvent(MessageEvent):
     
     @model_validator(mode="after")
     def post_process(self):
-        if self.message is None:
+        if getattr(self, 'message', None) is None:
             self.message = Message(
                 MessageSegment.xml(self.raw_msg)
             )
@@ -928,9 +975,11 @@ class RevokeEvent(NoticeEvent):
     raw_msg: str = ""
     """原始消息,xml格式"""
     FromUserName: str
-    """消息发送(撤回)人的wxid"""
+    """消息发送人/所在群聊的wxid"""
     ToUserName: str = ""
     """消息接收人的wxid"""
+    UserId: str
+    """消息发送(撤回)人的wxid"""
 
     @override
     @staticmethod
@@ -954,9 +1003,11 @@ class RevokeEvent(NoticeEvent):
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
+        UserId: str = get_sender_from_xml(remove_prefix_tag(raw_msg))
         obj.update({
             "ToUserName": ToUserName,
-            "raw_msg": raw_msg
+            "raw_msg": raw_msg,
+            "UserId": UserId
         })
         return type_validate_python(cls, obj)
 
@@ -1190,6 +1241,10 @@ class GroupNoteEvent(NoticeEvent):
     """所在群聊的ID"""
     ToUserName: str = ""
     """消息接收人的wxid"""
+    UserId: str
+    """发送者wxid"""
+    Content: str
+    """公告内容"""
 
     @override
     @staticmethod
@@ -1213,9 +1268,21 @@ class GroupNoteEvent(NoticeEvent):
         data = obj["data"]["Data"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
+        UserId: str = get_sender_from_xml(remove_prefix_tag(raw_msg))
+        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        datadesc = raw_msg
+        xmlcontent_element = root.find('.//xmlcontent')
+        if xmlcontent_element is not None:
+            xmlcontent = xmlcontent_element.text
+            nested_root = ET.fromstring(xmlcontent)
+            datadesc_element = nested_root.find('.//datadesc')
+            if datadesc_element is not None:
+                datadesc = datadesc_element.text
         obj.update({
             "ToUserName": ToUserName,
-            "raw_msg": raw_msg
+            "raw_msg": raw_msg,
+            "UserId": UserId,
+            "Content": datadesc
         })
         return type_validate_python(cls, obj)
 
@@ -1407,17 +1474,17 @@ class FriendRequestEvent(RequestEvent):
         data = obj["data"]["Data"]
         raw_msg = data["Content"]["string"]
         root = ET.fromstring(remove_prefix_tag(raw_msg))
-        msg = root.find("msg")
         # 好友请求
-        scene = msg.get("scene")
-        v3 = msg.get("encryptusername")
-        v4 = msg.get("ticket")
+        scene = root.attrib.get('scene')
+        v3 = root.attrib.get('encryptusername')
+        v4 = root.attrib.get('ticket')
+        content = root.attrib.get('content')
         flag = FriendRequestData(
-            scene=scene,
+            scene=int(scene),
             option=FriendRequestOption.ADD,
             v3=v3,
             v4=v4,
-            content=msg,  # FIXME: 未知字段
+            content=content
         )
         obj.update(flag=flag)
         return type_validate_python(cls, obj)

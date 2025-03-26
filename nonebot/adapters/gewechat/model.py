@@ -32,6 +32,7 @@ class AppType(int, Enum):
     MiniProgram1 = 33
     MiniProgram2 = 36
     Quote = 57
+    GroupNote = 87
     Transfer = 2000
     RedPacket = 2001
     VideoChannel = 51
@@ -152,6 +153,8 @@ class FriendRequestScene(Enum):
     """来自群聊"""
     PHONE_NUMBER = 15
     """手机号"""
+    UNKNOW_1 = 14
+    """未知1"""
 
 class FriendRequestOption(Enum):
     ADD = 2
