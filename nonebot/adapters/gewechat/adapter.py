@@ -5,6 +5,7 @@ import ujson as json
 from typing import Any
 from typing_extensions import override
 from pydantic import ValidationError
+from datetime import datetime
 
 from nonebot import get_plugin_config
 from nonebot.compat import type_validate_python
@@ -20,23 +21,25 @@ from nonebot.drivers import (
 )
 
 from nonebot.adapters import Adapter as BaseAdapter
+from nonebot.log import logger
 
 from .bot import Bot
 from .event import Event
 from .config import Config
-from .message import Message
 from .utils import log, resp_json
 from .model import *
 from .exception import ActionFailed, NetworkError
-
+from .event_store import EventStorage
 
 class Adapter(BaseAdapter):
     bots: dict[str, Bot]
     tasks: set[asyncio.Task]
+    event_store: EventStorage
 
     @override
     def __init__(self, driver: Driver, **kwargs: Any):
         super().__init__(driver, **kwargs)
+        self.event_store = EventStorage()
         self.token = ""
         self.adapter_config = get_plugin_config(Config)
         self.tasks = set()
@@ -77,6 +80,8 @@ class Adapter(BaseAdapter):
         await self._setup_bot()
         # http服务启动后,设置回调地址
         self.tasks.add(asyncio.create_task(self._setup_callback()))
+        # 添加定时清理任务
+        self.tasks.add(asyncio.create_task(self._schedule_cleanup()))
 
     async def _setup_http(self) -> None:
         if not isinstance(self.driver, ASGIMixin):
@@ -272,4 +277,19 @@ class Adapter(BaseAdapter):
         # 让 bot 对事件进行处理
         if event:
             log("DEBUG", f"handle event: {event}")
+            self.event_store.store_event(event)
             self.tasks.add(asyncio.create_task(bot.handle_event(event)))
+
+    async def _schedule_cleanup(self):
+        """定时清理任务"""
+        while True:
+            try:
+                await asyncio.sleep(3600)  # 每小时检查一次
+                if datetime.now().hour == 3:  # 每天凌晨3点执行
+                    self.event_store.cleanup_expired_events(
+                        self.adapter_config.msg_expire_time
+                    )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"定时清理任务异常: {str(e)}")

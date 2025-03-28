@@ -681,6 +681,10 @@ class QuoteMessageEvent(MessageEvent):
     """消息子类型"""
     raw_msg: str = ""
     """原始消息,xml格式"""
+    refer_id: str = ""
+    """被引用的消息id"""
+    refer_msg: Message = None
+    """被引用的消息事件"""
 
     @override
     @staticmethod
@@ -707,11 +711,28 @@ class QuoteMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
+        root = ET.fromstring(self.raw_msg)
+
+        title = root.find('.//appmsg/title')
+        refermsg = root.find('.//appmsg/refermsg')
+
+        if refermsg is not None:
+            svrid = refermsg.findtext('svrid')
+            if svrid is not None:
+                self.refer_id = svrid
         self.message = Message(
-            MessageSegment.xml(self.raw_msg)
+            MessageSegment.text(title.text)
         )
         self.original_message = deepcopy(self.message)
         return self
+    
+    async def get_refer_msg(self, bot):
+        refer_event = await bot.getMessageEventByMsgId(self.refer_id)
+        if refer_event is not None:
+            self.refer_msg = refer_event.message
+        else:
+            raw = ET.fromstring(self.raw_msg).find('.//appmsg/refermsg').findtext('content').strip()
+            self.refer_msg = Message(raw)
 
 class TransferMessageEvent(MessageEvent):
     """

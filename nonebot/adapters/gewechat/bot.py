@@ -10,7 +10,7 @@ from nonebot.drivers import Response as HttpResponse
 from nonebot.compat import type_validate_python, model_dump
 
 from .message import Message, MessageSegment
-from .event import Event, MessageEvent, TextMessageEvent, ImageMessageEvent
+from .event import Event, MessageEvent, TextMessageEvent, ImageMessageEvent, QuoteMessageEvent
 from .utils import log, resp_json
 from .api_model import *
 
@@ -93,6 +93,8 @@ class Bot(BaseBot):
                 check_nickname(self, event)
             elif isinstance(event, ImageMessageEvent):
                 await event.download_image(self)
+            elif isinstance(event, QuoteMessageEvent):
+                await event.get_refer_msg(self)
             if not event.is_group_message():
                 event.to_me = True
         # 调用 handle_event 让 NoneBot 对事件进行处理
@@ -705,3 +707,10 @@ class Bot(BaseBot):
         """
         request = deleteFavorFolderRequest(favId=favId)
         return type_validate_python(Response, resp_json(await self.call_api("/favor/delete", **model_dump(request))))
+
+    async def getMessageEventByMsgId(self, msgId: str) -> MessageEvent:
+        """
+        通过msgId获取消息事件
+        msgId: 消息id
+        """
+        return self.adapter.event_store.get_by_newmsgid(msgId)

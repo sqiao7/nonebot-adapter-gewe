@@ -9,3 +9,4 @@ class Config(BaseModel):
     wxid: str = Field(default="wxid_xxxxxx", description="微信id")
     appid: str = Field(default="", description="设备id,首次登录留空")
     self_msg: bool = Field(default=True, description="是否接收自身消息")
+    msg_expire_time: int = Field(default=31, description="消息存储到期时间,单位天")
