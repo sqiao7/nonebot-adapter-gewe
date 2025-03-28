@@ -357,6 +357,7 @@ class Message(BaseMessage[MessageSegment]):
             "file": "File",
             "video": "Video",
             "voice": "Voice",
+            "link": "Link",
             "emoji": "Emoji",
             "namecard": "NameCard",
             "appmsg": "AppMsg",
