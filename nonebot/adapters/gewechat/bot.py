@@ -191,15 +191,15 @@ class Bot(BaseBot):
         request = uploadPhoneAddressRequest(phones=phones, opType=opType)
         return type_validate_python(Response, resp_json(await self.call_api("/contacts/uploadPhoneAddressList", **model_dump(request))))
     
-    async def getBreifInfo(self, wxids: list[str]) -> GetBreifInfoResponse:
+    async def getBriefInfo(self, wxids: list[str]) -> GetBriefInfoResponse:
         """
         获取联系人简要信息
         wxids: 好友的wxid(>=1, <=100)
         """
         if len(wxids) > 100 or len(wxids) == 0:
             log("error", "wxid数量错误", ValueError("wxid数量错误"))
-        request = GetBreifInfoRequest(wxids=wxids)
-        return type_validate_python(GetBreifInfoResponse, resp_json(await self.call_api("/contacts/getBriefInfo", **model_dump(request))))
+        request = GetBriefInfoRequest(wxids=wxids)
+        return type_validate_python(GetBriefInfoResponse, resp_json(await self.call_api("/contacts/getBriefInfo", **model_dump(request))))
 
 
     async def getDetailInfo(self, wxids: list[str]) -> GetDetailInfoResponse:

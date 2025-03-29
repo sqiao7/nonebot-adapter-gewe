@@ -13,9 +13,9 @@ class InfoData(BaseModel):
     pyInitial: str
     quanPin: str
     sex: int
-    remark: str
-    remarkPyInitial: str
-    remarkQuanPin: str
+    remark: Optional[str] = None
+    remarkPyInitial: Optional[str] = None
+    remarkQuanPin: Optional[str] = None
     signature: Optional[str] = None
     alias: str
     snsBgImg: Optional[str] = None
@@ -106,12 +106,12 @@ class uploadPhoneAddressRequest(BaseModel):
     opType: int
     """操作类型, 1:添加, 2:删除"""
 
-class GetBreifInfoRequest(BaseModel):
+class GetBriefInfoRequest(BaseModel):
     """获取简要信息请求"""
     wxids: list[str]
     """好友的微信号,>=1 <=100"""
 
-class GetBreifInfoResponse(Response):
+class GetBriefInfoResponse(Response):
     data: list[InfoData]
 
 class GetDetailInfoRequest(BaseModel):
@@ -241,17 +241,17 @@ class getChatroomInfoData(BaseModel):
     quanPin: str
     """群聊名称的拼音全拼"""
     sex: int
-    remark: str
+    remark: Optional[str] = None
     """群备注, 仅自己可见"""
-    remarkPyInitial: str
+    remarkPyInitial: Optional[str] = None
     """备注的拼音首字母"""
-    remarkQuanPin: str
+    remarkQuanPin: Optional[str] = None
     """备注的拼音全拼"""
     chatRoomNotify: int
     """群消息是否提醒"""
     chatRoomOwner: str
     """群主的wxid"""
-    smallHeadImgUrl: int
+    smallHeadImgUrl: str
     """群头像链接"""
     memberList: list[ChatroomMemberInfo]
     """群成员信息"""
