@@ -1,6 +1,7 @@
 import qrcode
 import asyncio
 import ujson as json
+import PIL
 
 from typing import Any
 from typing_extensions import override
@@ -126,6 +127,7 @@ class Adapter(BaseAdapter):
             qr_code = qrcode.QRCode()
             qr_code.add_data(data['data']['qrData'])
             qr_code.print_ascii(invert=True)
+            qr_code.make_image().save("qrcode.png", format="PNG")
             log("INFO", "请使用微信扫描二维码登录")
             captchCode: str = input("扫码后输入验证码(如果有): ")
         else:
