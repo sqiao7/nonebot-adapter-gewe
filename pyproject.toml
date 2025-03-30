@@ -15,6 +15,7 @@ nonebot2 = ">=2.4.2"
 pydantic = ">=1.10.0,<3.0.0,!=2.5.0,!=2.5.1"
 qrcode = "^8.0"
 ujson = "^5.10.0"
+selectolax = "^0.3.28"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

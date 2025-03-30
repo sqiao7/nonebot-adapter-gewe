@@ -1,5 +1,7 @@
-import xml.etree.ElementTree as ET
+import re
+
 from copy import deepcopy
+from selectolax.parser import HTMLParser
 from datetime import datetime
 from typing import TYPE_CHECKING, Union, Optional, Final
 from typing_extensions import override
@@ -12,7 +14,7 @@ from nonebot.log import logger
 from .model import AddMessageData, FriendRequestOption, TestMessage, MessageType, TypeName, ImgBuf, AppType, SystemMsgType, FriendRequestData, GroupRequestData
 from .model import Message as RawMessage
 from .message import Message, MessageSegment
-from .utils import remove_prefix_tag, get_sender_from_xml
+from .utils import remove_prefix_tag, get_sender_from_xml, get_appmsg_type
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -147,11 +149,13 @@ class MessageEvent(Event):
                 return False
             # 群聊邀请和公众号链接特判
             if event.sub_type == MessageType.AppMsg:
-                root = ET.fromstring(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
-                type = root.find("appmsg").find("type").text
-                if int(type) != AppType.Link.value:
+                tree = HTMLParser(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
+                appmsg = tree.css_first("appmsg")
+                type_ = get_appmsg_type(event.data["Data"]["Content"]["string"])
+                
+                if int(type_) != AppType.Link.value:
                     return True
-                title = root.find("appmsg").find("title").text
+                title = appmsg.css_first("title").text()
                 if "邀请你加入群聊" not in title:
                     return True
             else:
@@ -269,12 +273,13 @@ class GroupNoteTextMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg), use_meta_tags=False)
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.GroupNote.value:
             return True
         return False
@@ -287,19 +292,19 @@ class GroupNoteTextMessageEvent(MessageEvent):
     @model_validator(mode="after")
     def post_process(self):
         raw_msg = self.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
         datadesc = raw_msg
-        announcement_element = root.find('.//appmsg/announcement')
+        announcement_element = tree.css_first('appmsg announcement')
         if announcement_element is not None:
-            announcement_xml = announcement_element.text
+            announcement_xml = announcement_element.text()
 
             # 解析 announcement 中的 XML 数据
-            nested_root = ET.fromstring(announcement_xml)
+            nested_tree = HTMLParser(announcement_xml)
 
             # 找到 datadesc 元素并获取其内容
-            datadesc_element = nested_root.find('.//datalist/dataitem[@datatype="1"]/datadesc')
+            datadesc_element = nested_tree.css_first('datalist dataitem[datatype="1"] datadesc')
             if datadesc_element is not None:
-                datadesc = datadesc_element.text
+                datadesc = datadesc_element.text()
         self.message = Message(datadesc)
         self.original_message = Message(datadesc)
         return self
@@ -457,9 +462,10 @@ class EmojiMessageEvent(MessageEvent):
         obj = deepcopy(model_dump(event))
         md5: str = ""
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        md5 = root.find('emoji').get('md5')
-        md5_size = int(root.find('emoji').get('len'))
+        root = HTMLParser(remove_prefix_tag(raw_msg))
+        emoji = root.css_first('emoji')
+        md5 = emoji.attributes.get('md5')
+        md5_size = int(emoji.attributes.get('len'))
         obj.update({
             "raw_msg": raw_msg,
             "md5": md5,
@@ -493,15 +499,16 @@ class PublicLinkMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        if root.find("appmsg").find("title") is None:
+        if appmsg.css_first("title") is None:
             return False
-        type_ = root.find("appmsg").find("type").text
-        title = root.find("appmsg").find("title").text
+        type_ = get_appmsg_type(raw_msg)
+        title = appmsg.css_first("title").text()
         if int(type_) == AppType.Link.value and ("邀请你加入群聊" not in title):
             return True
         return False
@@ -537,12 +544,13 @@ class FileUploadingMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.FileSend.value:
             return True
         return False
@@ -578,12 +586,13 @@ class FileMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.FileDone.value:
             return True
         return False
@@ -649,12 +658,13 @@ class MiniProgramMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) in [AppType.MiniProgram1.value, AppType.MiniProgram2.value]:
             return True
         return False
@@ -693,12 +703,13 @@ class QuoteMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.Quote.value:
             return True
         return False
@@ -714,17 +725,17 @@ class QuoteMessageEvent(MessageEvent):
 
     @model_validator(mode="after")
     def post_process(self):
-        root = ET.fromstring(self.raw_msg)
+        tree = HTMLParser(self.raw_msg)
 
-        title = root.find('.//appmsg/title')
-        refermsg = root.find('.//appmsg/refermsg')
+        title = tree.css_first('appmsg title')
+        refermsg = tree.css_first('appmsg refermsg')
 
         if refermsg is not None:
-            svrid = refermsg.findtext('svrid')
-            if svrid is not None:
-                self.refer_id = svrid
+            svrid_element = refermsg.css_first('svrid')
+            if svrid_element is not None:
+                self.refer_id = svrid_element.text()
         self.message = Message(
-            MessageSegment.text(title.text)
+            MessageSegment.text(title.text())
         )
         self.original_message = deepcopy(self.message)
         return self
@@ -734,7 +745,7 @@ class QuoteMessageEvent(MessageEvent):
         if refer_event is not None:
             self.refer_msg = refer_event.message
         else:
-            raw = ET.fromstring(self.raw_msg).find('.//appmsg/refermsg').findtext('content').strip()
+            raw = HTMLParser(self.raw_msg).css_first('appmsg refermsg').css_first('content').text().strip()
             self.refer_msg = Message(raw)
 
 class TransferMessageEvent(MessageEvent):
@@ -750,12 +761,13 @@ class TransferMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.Transfer.value:
             return True
         return False
@@ -790,12 +802,13 @@ class RedPactMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.RedPacket.value:
             return True
         return False
@@ -830,12 +843,14 @@ class VideoChannelMessageEvent(MessageEvent):
     @staticmethod
     def type_validator(event: MessageEvent) -> bool:
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "msg":
+        raw_msg: str = event.data["Data"]["Content"]["string"]
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("msg") is None:
             return False
-        if root.find("appmsg") is None:
+        appmsg = tree.css_first("appmsg")
+        if appmsg is None:
             return False
-        type_ = root.find("appmsg").find("type").text
+        type_ = get_appmsg_type(raw_msg)
         if int(type_) == AppType.VideoChannel.value:
             return True
         return False
@@ -966,11 +981,10 @@ class PokeEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        t = remove_prefix_tag(raw_msg)
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type == SystemMsgType.Poke.value:
             return True
         return False
@@ -981,8 +995,8 @@ class PokeEvent(NoticeEvent):
         data = obj["data"]["Data"]
         ToUserName: str = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        UserId = root.find('.//fromusername').text
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        UserId = tree.css_first('fromusername').text()
         obj.update({
             "ToUserName": ToUserName,
             "raw_msg": raw_msg,
@@ -1013,10 +1027,10 @@ class RevokeEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type == SystemMsgType.Revoke.value:
             return True
         return False
@@ -1093,10 +1107,10 @@ class GroupMemberRemovedEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type != SystemMsgType.Template.value:
             return False
         if "移出了群聊" in raw_msg:
@@ -1136,10 +1150,10 @@ class GroupDismissedEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type != SystemMsgType.Template.value:
             return False
         if "已解散该群聊" in raw_msg:
@@ -1278,10 +1292,10 @@ class GroupNoteEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type == SystemMsgType.GroupNotice.value:
             return True
         return False
@@ -1293,15 +1307,15 @@ class GroupNoteEvent(NoticeEvent):
         ToUserName = data["ToUserName"]["string"]
         raw_msg: str = data["Content"]["string"]
         UserId: str = get_sender_from_xml(remove_prefix_tag(raw_msg))
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
         datadesc = raw_msg
-        xmlcontent_element = root.find('.//xmlcontent')
+        xmlcontent_element = tree.css_first('xmlcontent')
         if xmlcontent_element is not None:
-            xmlcontent = xmlcontent_element.text
-            nested_root = ET.fromstring(xmlcontent)
-            datadesc_element = nested_root.find('.//datadesc')
+            xmlcontent = xmlcontent_element.text()
+            nested_tree = HTMLParser(xmlcontent)
+            datadesc_element = nested_tree.css_first('datadesc')
             if datadesc_element is not None:
-                datadesc = datadesc_element.text
+                datadesc = datadesc_element.text()
         obj.update({
             "ToUserName": ToUserName,
             "raw_msg": raw_msg,
@@ -1331,10 +1345,10 @@ class GroupTodoEvent(NoticeEvent):
         if event.data["Data"]["MsgType"] != MessageType.SystemMsg:
             return False
         raw_msg: str = event.data["Data"]["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        if root.tag != "sysmsg":
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
+        if tree.css_first("sysmsg") is None:
             return False
-        type = root.get("type")
+        type = tree.css_first("sysmsg").attributes.get("type")
         if type == SystemMsgType.GroupTodo.value:
             return True
         return False
@@ -1427,11 +1441,12 @@ class RequestEvent(Event):
             if event.sub_type == MessageType.FriendAdd:
                 return True
             if event.sub_type == MessageType.AppMsg:
-                root = ET.fromstring(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
-                if root.tag != "msg":
+                tree = HTMLParser(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
+                if tree.css_first("msg") is None:
                     return False
-                type = root.find("appmsg").find("type").text
-                title = root.find("appmsg").find("title").text
+                appmsg = tree.css_first("appmsg")
+                type = appmsg.css_first("type").text()
+                title = appmsg.css_first("title").text()
                 if int(type) == AppType.Link.value and "邀请你加入群聊" in title:
                     return True
         return False
@@ -1444,9 +1459,6 @@ class RequestEvent(Event):
         FromUserName = data["FromUserName"]["string"]
         ToUserName = data["ToUserName"]["string"]
         raw_msg = data["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        msg = root.find("msg")
-
         
         obj.update({
             "FromUserName": FromUserName,
@@ -1455,9 +1467,7 @@ class RequestEvent(Event):
         })
 
         event = type_validate_python(cls, obj)
-
         sub_event = [FriendRequestEvent, GroupInviteEvent]
-
         for event_type in sub_event:
             if event_type.type_validator(event):
                 if hasattr(event_type, "_parse__event"):
@@ -1497,12 +1507,13 @@ class FriendRequestEvent(RequestEvent):
         obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         raw_msg = data["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
+        tree = HTMLParser(remove_prefix_tag(raw_msg))
         # 好友请求
-        scene = root.attrib.get('scene')
-        v3 = root.attrib.get('encryptusername')
-        v4 = root.attrib.get('ticket')
-        content = root.attrib.get('content')
+        msg = tree.css_first("msg")
+        scene = msg.attributes.get('scene')
+        v3 = msg.attributes.get('encryptusername')
+        v4 = msg.attributes.get('ticket')
+        content = msg.attributes.get('content')
         flag = FriendRequestData(
             scene=int(scene),
             option=FriendRequestOption.ADD,
@@ -1526,11 +1537,12 @@ class GroupInviteEvent(RequestEvent):
     @staticmethod
     def type_validator(event: NoticeEvent) -> bool:
         if event.sub_type == MessageType.AppMsg:
-            root = ET.fromstring(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
-            if root.tag != "msg":
+            tree = HTMLParser(remove_prefix_tag(event.data["Data"]["Content"]["string"]))
+            if tree.css_first("msg") is None:
                 return False
-            type = root.find("appmsg").find("type").text
-            title = root.find("appmsg").find("title").text
+            appmsg = tree.css_first("appmsg")
+            type = appmsg.css_first("type").text()
+            title = appmsg.css_first("title").text()
             if int(type) == AppType.Link.value and "邀请你加入群聊" in title:
                 return True
         return False
@@ -1540,10 +1552,10 @@ class GroupInviteEvent(RequestEvent):
         obj = deepcopy(model_dump(event))
         data = obj["data"]["Data"]
         raw_msg: str = data["Content"]["string"]
-        root = ET.fromstring(remove_prefix_tag(raw_msg))
-        msg = root.find("msg")
+        root = HTMLParser(remove_prefix_tag(raw_msg))
+        msg = root.css_first("msg")
         # 群聊邀请
-        url = msg.find("appmsg").find("url").text
+        url = msg.css_first("appmsg").css_first("url").text()
         start_index = url.find('![CDATA[') + len('![CDATA[')
         end_index = url.find(']]>')
         url = data[start_index:end_index]
