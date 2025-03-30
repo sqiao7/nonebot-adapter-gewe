@@ -31,11 +31,12 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return Text("text", {"text": text})
 
     @classmethod
-    def at(cls, wxid: str):
+    def at(cls, wxid: str, nickname: str = ""):
         """@消息
         :param wxid: 被@的wxid
+        :param nickname: 被@的昵称
         """
-        return At("at", {"wxid": wxid})
+        return At("at", {"wxid": wxid, "nickname": nickname})
     
     @classmethod
     def at_all(cls):
@@ -372,12 +373,15 @@ class Message(BaseMessage[MessageSegment]):
             segments.insert(0, first_text)
         if self.has("at_all"):
             first_text.data["ats"] = "notify@all"  # type: ignore
+            first_text.data["text"] = "@所有人 " + first_text.data["text"]
         if self.has("at"):
             at_list = self.get("at")
             if "ats" in first_text.data:
                 first_text.data["ats"] += "," + ",".join([at.data["wxid"] for at in at_list])
             else:
                 first_text.data["ats"] = ",".join([at.data["wxid"] for at in at_list])  # type: ignore
+            for at in at_list:
+                first_text.data["text"] = f'@{at.data["nickname"]} ' + first_text.data["text"]
         if first_text.data["text"] == "" and not first_text.data.get("ats"):
             segments.remove(first_text)
         api_map = {
