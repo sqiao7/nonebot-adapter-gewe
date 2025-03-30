@@ -259,7 +259,7 @@ class TextMessageEvent(MessageEvent):
             members = (await bot.getChatroomMemberList(self.FromUserName)).data.memberList
             for member in members:
                 for at in self.message.include("at"):
-                    if at.data["wxid"] == member.displayName or at.data["wxid"] == member.nickName:
+                    if at.data["nickname"] == member.displayName or at.data["nickname"] == member.nickName:
                         at.data["wxid"] = member.wxid
 
 class GroupNoteTextMessageEvent(MessageEvent):

@@ -31,7 +31,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return Text("text", {"text": text})
 
     @classmethod
-    def at(cls, wxid: str, nickname: str = ""):
+    def at(cls, wxid: str = "", nickname: str = ""):
         """@消息
         :param wxid: 被@的wxid
         :param nickname: 被@的昵称
@@ -359,7 +359,7 @@ class Message(BaseMessage[MessageSegment]):
             if at == "@所有人" or at == "@ all people":
                 yield MessageSegment.at_all()
             else:
-                yield MessageSegment.at(at[1:])
+                yield MessageSegment.at(nickname=at[1:])
         content = msg[text_begin:]
         if content:
             yield MessageSegment.text(content)
