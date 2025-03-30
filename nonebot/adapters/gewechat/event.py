@@ -694,8 +694,6 @@ class QuoteMessageEvent(MessageEvent):
     """消息子类型"""
     raw_msg: str = ""
     """原始消息,xml格式"""
-    refer_id: str = ""
-    """被引用的消息id"""
     refer_msg: Message = None
     """被引用的消息事件"""
 
@@ -727,26 +725,40 @@ class QuoteMessageEvent(MessageEvent):
     def post_process(self):
         tree = HTMLParser(self.raw_msg)
 
-        title = tree.css_first('appmsg title')
-        refermsg = tree.css_first('appmsg refermsg')
+        appmsg = tree.css_first('appmsg')
+        title = appmsg.css_first('title')
+        refermsg = appmsg.css_first('refermsg')
+        fromusr = refermsg.css_first('fromusr')
+        svrid = refermsg.css_first('svrid')
+        chatusr = refermsg.css_first('chatusr')
+        displayname = refermsg.css_first('displayname')
+        content = refermsg.css_first('content')
+        createtime = refermsg.css_first('createtime')
 
         if refermsg is not None:
             svrid_element = refermsg.css_first('svrid')
             if svrid_element is not None:
                 self.refer_id = svrid_element.text()
         self.message = Message(
-            MessageSegment.text(title.text())
+            MessageSegment.quote(
+                fromusr.text(),
+                chatusr.text(),
+                title.text(),
+                svrid.text(),
+                content.text(),
+                createtime.text(),
+                displayname.text(),
+            )
         )
         self.original_message = deepcopy(self.message)
         return self
     
     async def get_refer_msg(self, bot):
-        refer_event = await bot.getMessageEventByMsgId(self.refer_id)
+        refer_event = await bot.getMessageEventByMsgId(self.message[0].data.get("svrId"))
         if refer_event is not None:
             self.refer_msg = refer_event.message
         else:
-            raw = HTMLParser(self.raw_msg).css_first('appmsg refermsg').css_first('content').text().strip()
-            self.refer_msg = Message(raw)
+            self.refer_msg = Message(self.message[0].data["content"])
 
 class TransferMessageEvent(MessageEvent):
     """

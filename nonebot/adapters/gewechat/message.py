@@ -4,6 +4,7 @@ from typing_extensions import override
 from dataclasses import dataclass
 from nonebot.adapters import Message as BaseMessage, MessageSegment as BaseMessageSegment
 
+from .template import quote_msg
 
 class MessageSegment(BaseMessageSegment["Message"]):
 
@@ -100,8 +101,21 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return Emoji("emoji", {"emojiMd5": emojiMd5, "emojiSize": emojiSize})
     
     @classmethod
+    def quote(cls, FromUserName: str, ToUserName: str, title: str, svrId: str, content: str = "", createTime: int = 0, displayName: str = ""):
+        """引用消息
+        :param FromUserName: 发送者/群聊ID
+        :param ToUserName: 接收者ID
+        :param title: 引用消息内容
+        :param svrId: 被引用消息id
+        :param content: 被引用消息内容,发送时留空
+        :param createTime: 引用消息创建时间,发送时留空
+        :param displayName: 被引用消息用户昵称,发送时留空
+        """
+        return Quote("quote", {"FromUserName": FromUserName, "ToUserName": ToUserName, "svrId": svrId, "title": title, "content": content, "displayName": displayName, "createTime": createTime})
+
+    @classmethod
     def appmsg(cls, appmsg: str):
-        """公众号消息
+        """appmsg消息
         :param appmsg: 回调消息中的appmsg节点内容
         """
         return AppMsg("appmsg", {"appmsg": appmsg})
@@ -251,6 +265,19 @@ class _EmojiData(TypedDict):
 class Emoji(MessageSegment):
     data: _EmojiData  # type: ignore
 
+class _QuoteData(TypedDict):
+    FromUserName: str
+    ToUserName: str
+    svrId: str
+    title: str
+    content: str
+    displayName: str
+    createTime: int
+
+@dataclass
+class Quote(MessageSegment):
+    data: _QuoteData
+
 class _AppMsgData(TypedDict):
     appmsg: str
 
@@ -351,6 +378,8 @@ class Message(BaseMessage[MessageSegment]):
                 first_text.data["ats"] += "," + ",".join([at.data["wxid"] for at in at_list])
             else:
                 first_text.data["ats"] = ",".join([at.data["wxid"] for at in at_list])  # type: ignore
+        if first_text.data["text"] == "" and not first_text.data.get("ats"):
+            segments.remove(first_text)
         api_map = {
             "text": "Text",
             "image": "Image",
@@ -366,6 +395,11 @@ class Message(BaseMessage[MessageSegment]):
 
         msg_payload = []
         for segment in segments:
+            if segment.type == 'quote':
+                appmsg_content = quote_msg(**segment.data)
+                api = "/message/postAppMsg"
+                msg_payload.append((api, {"appmsg": appmsg_content}))
+                continue
             if "forward" in segment.type:
                 api = f"/message/{segment.type}"
             else:
