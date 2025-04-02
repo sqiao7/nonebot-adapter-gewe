@@ -28,9 +28,9 @@ pytest-cov = "^6.0.0"
 [tool.pytest.ini_options]
 addopts = "--cov nonebot/adapters/gewechat --cov-report term-missing"
 
-
-[tool.pdm]
-distribution = false
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.pdm.dev-dependencies]
 dev = [
