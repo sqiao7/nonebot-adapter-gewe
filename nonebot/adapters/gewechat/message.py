@@ -195,6 +195,7 @@ class Text(MessageSegment):
 
 class _AtData(TypedDict):
     wxid: str
+    nickname: str
 
 @dataclass
 class At(MessageSegment):
@@ -277,7 +278,7 @@ class _QuoteData(TypedDict):
 
 @dataclass
 class Quote(MessageSegment):
-    data: _QuoteData
+    data: _QuoteData  # type: ignore
 
 class _AppMsgData(TypedDict):
     appmsg: str

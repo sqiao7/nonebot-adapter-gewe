@@ -460,12 +460,11 @@ class EmojiMessageEvent(MessageEvent):
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "EmojiMessageEvent":
         obj = deepcopy(model_dump(event))
-        md5: str = ""
         raw_msg: str = obj["data"]["Data"]["Content"]["string"]
         root = HTMLParser(remove_prefix_tag(raw_msg))
         emoji = root.css_first('emoji')
-        md5 = emoji.attributes.get('md5')
-        md5_size = int(emoji.attributes.get('len'))
+        md5 = emoji.attributes.get('md5') or ""
+        md5_size = int(emoji.attributes.get('len') or 0)
         obj.update({
             "raw_msg": raw_msg,
             "md5": md5,
@@ -694,8 +693,11 @@ class QuoteMessageEvent(MessageEvent):
     """消息子类型"""
     raw_msg: str = ""
     """原始消息,xml格式"""
-    refer_msg: Message = None
-    """被引用的消息事件"""
+    refer_id: Optional[str] = None
+    """引用的消息ID"""
+    if TYPE_CHECKING:
+        refer_msg: Message
+        """被引用的消息事件"""
 
     @override
     @staticmethod
@@ -746,15 +748,15 @@ class QuoteMessageEvent(MessageEvent):
                 title.text(),
                 svrid.text(),
                 content.text(),
-                createtime.text(),
+                int(createtime.text()),
                 displayname.text(),
             )
         )
         self.original_message = deepcopy(self.message)
         return self
     
-    async def get_refer_msg(self, bot):
-        refer_event = await bot.getMessageEventByMsgId(self.message[0].data.get("svrId"))
+    async def get_refer_msg(self, bot: "Bot"):
+        refer_event = bot.getMessageEventByMsgId(self.message[0].data["svrid"])
         if refer_event is not None:
             self.refer_msg = refer_event.message
         else:
@@ -1522,7 +1524,7 @@ class FriendRequestEvent(RequestEvent):
         tree = HTMLParser(remove_prefix_tag(raw_msg))
         # 好友请求
         msg = tree.css_first("msg")
-        scene = msg.attributes.get('scene')
+        scene = msg.attributes.('scene')
         v3 = msg.attributes.get('encryptusername')
         v4 = msg.attributes.get('ticket')
         content = msg.attributes.get('content')

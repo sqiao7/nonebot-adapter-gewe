@@ -708,7 +708,7 @@ class Bot(BaseBot):
         request = deleteFavorFolderRequest(favId=favId)
         return type_validate_python(Response, resp_json(await self.call_api("/favor/delete", **model_dump(request))))
 
-    async def getMessageEventByMsgId(self, msgId: str) -> MessageEvent:
+    def getMessageEventByMsgId(self, msgId: str) -> Optional[MessageEvent]:
         """
         通过msgId获取消息事件
         msgId: 消息id

@@ -47,6 +47,8 @@ def get_appmsg_type(xml: str) -> int:
     # 先尝试标准 CDATA 解析
     if t.text():
         return int(t.text())
+    elif not t.html:
+        return -1
     else:
         # 处理被错误注释的 CDATA
         cdata_match = re.search(r"<!--\[CDATA\[(\d+)\]\]-->", t.html)
