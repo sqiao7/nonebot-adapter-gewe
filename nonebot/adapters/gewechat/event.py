@@ -742,7 +742,7 @@ class QuoteMessageEvent(MessageEvent):
         return self
     
     async def get_refer_msg(self, bot: "Bot"):
-        refer_event = bot.getMessageEventByMsgId(self.message[0].data["svrid"])
+        refer_event = bot.getMessageEventByMsgId(self.message[0].data["svrId"])
         if refer_event is not None:
             if self.reply:
                 self.reply.msg = refer_event.message
