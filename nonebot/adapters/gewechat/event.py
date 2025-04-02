@@ -1,6 +1,5 @@
-import re
-
 from copy import deepcopy
+from dataclasses import dataclass
 from selectolax.parser import HTMLParser
 from datetime import datetime
 from typing import TYPE_CHECKING, Union, Optional, Final
@@ -18,6 +17,14 @@ from .utils import remove_prefix_tag, get_sender_from_xml, get_appmsg_type
 
 if TYPE_CHECKING:
     from .bot import Bot
+
+@dataclass
+class Reply:
+    id: str
+    """回复消息ID"""
+    msg: Message
+    """回复消息"""
+
 
 class Event(BaseEvent):
     """
@@ -134,6 +141,10 @@ class MessageEvent(Event):
     """消息排重用消息ID"""
     MsgSeq: int
     """消息序列"""
+    raw_msg: str = ""
+    """原始消息,xml格式,可用于下载"""
+    reply: Optional[Reply] = None
+    """引用消息"""
 
     if TYPE_CHECKING:
         message: Message
@@ -231,6 +242,16 @@ class MessageEvent(Event):
     def get_session_id(self) -> str:
         return f"{self.FromUserName}-{self.UserId}"
 
+
+    async def get_ats_wxid(self, bot: "Bot"):
+        if self.message.has("at"):
+            members = (await bot.getChatroomMemberList(self.FromUserName)).data.memberList
+            for member in members:
+                for at in self.message.include("at"):
+                    if at.data["nickname"] == member.displayName or at.data["nickname"] == member.nickName:
+                        at.data["wxid"] = member.wxid
+
+
 class TextMessageEvent(MessageEvent):
     """
     文本消息事件
@@ -246,6 +267,9 @@ class TextMessageEvent(MessageEvent):
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "TextMessageEvent":
         obj = deepcopy(model_dump(event))
+        obj.update({
+            "raw_msg": obj["data"]["Data"]["Content"]["string"]
+        })
         return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
@@ -253,14 +277,6 @@ class TextMessageEvent(MessageEvent):
         self.message = Message(self.data["Data"]["Content"]["string"])
         self.original_message = Message(self.data["Data"]["Content"]["string"])
         return self
-
-    async def get_ats_wxid(self, bot: "Bot"):
-        if self.message.has("at"):
-            members = (await bot.getChatroomMemberList(self.FromUserName)).data.memberList
-            for member in members:
-                for at in self.message.include("at"):
-                    if at.data["nickname"] == member.displayName or at.data["nickname"] == member.nickName:
-                        at.data["wxid"] = member.wxid
 
 class GroupNoteTextMessageEvent(MessageEvent):
     """
@@ -287,6 +303,9 @@ class GroupNoteTextMessageEvent(MessageEvent):
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "GroupNoteTextMessageEvent":
         obj = deepcopy(model_dump(event))
+        obj.update({
+            "raw_msg": obj["data"]["Data"]["Content"]["string"]
+        })
         return type_validate_python(cls, obj)
 
     @model_validator(mode="after")
@@ -316,8 +335,6 @@ class ImageMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Image
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式,可用于下载"""
     ImgBuf: ImgBuf
     """图片数据,有的图片可能没有"""
 
@@ -358,8 +375,6 @@ class VoiceMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Voice
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式,可用于下载"""
     ImgBuf: ImgBuf
     """语音数据,有的语音可能没有"""
 
@@ -390,8 +405,6 @@ class LocationMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Location
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式,可用于下载"""
 
     @classmethod
     def _parse__event(cls, event: MessageEvent) -> "LocationMessageEvent":
@@ -420,8 +433,6 @@ class VideoMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Video
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式,可用于下载"""
 
     @override
     @staticmethod
@@ -450,8 +461,6 @@ class EmojiMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.Emoji
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
     md5: str
     """表情包md5,可用于发送"""
     md5_size: int
@@ -491,8 +500,6 @@ class PublicLinkMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -536,8 +543,6 @@ class FileUploadingMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -578,8 +583,6 @@ class FileMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -619,8 +622,6 @@ class NamecardMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.NameCard
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -650,8 +651,6 @@ class MiniProgramMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -691,13 +690,6 @@ class QuoteMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
-    refer_id: Optional[str] = None
-    """引用的消息ID"""
-    if TYPE_CHECKING:
-        refer_msg: Message
-        """被引用的消息事件"""
 
     @override
     @staticmethod
@@ -737,30 +729,26 @@ class QuoteMessageEvent(MessageEvent):
         content = refermsg.css_first('content')
         createtime = refermsg.css_first('createtime')
 
-        if refermsg is not None:
-            svrid_element = refermsg.css_first('svrid')
-            if svrid_element is not None:
-                self.refer_id = svrid_element.text()
-        self.message = Message(
-            MessageSegment.quote(
-                fromusr.text(),
-                chatusr.text(),
-                title.text(),
-                svrid.text(),
-                content.text(),
-                int(createtime.text()),
-                displayname.text(),
-            )
-        )
+        self.reply = Reply(svrid.text(), Message(content.text()))
+        self.message = MessageSegment.quote(
+            fromusr.text(),
+            chatusr.text(),
+            svrid.text(),
+            content.text(),
+            int(createtime.text()),
+            displayname.text(),
+        ) + Message(title.text())
         self.original_message = deepcopy(self.message)
         return self
     
     async def get_refer_msg(self, bot: "Bot"):
         refer_event = bot.getMessageEventByMsgId(self.message[0].data["svrid"])
         if refer_event is not None:
-            self.refer_msg = refer_event.message
-        else:
-            self.refer_msg = Message(self.message[0].data["content"])
+            if self.reply:
+                self.reply.msg = refer_event.message
+            else:
+                self.reply = Reply(str(refer_event.MsgId), refer_event.message)
+
 
 class TransferMessageEvent(MessageEvent):
     """
@@ -768,8 +756,6 @@ class TransferMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -809,8 +795,6 @@ class RedPactMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -850,8 +834,6 @@ class VideoChannelMessageEvent(MessageEvent):
     """
     sub_type: MessageType = MessageType.AppMsg
     """消息子类型"""
-    raw_msg: str = ""
-    """原始消息,xml格式"""
 
     @override
     @staticmethod
@@ -1524,7 +1506,7 @@ class FriendRequestEvent(RequestEvent):
         tree = HTMLParser(remove_prefix_tag(raw_msg))
         # 好友请求
         msg = tree.css_first("msg")
-        scene = msg.attributes.('scene')
+        scene = msg.attributes.get('scene')
         v3 = msg.attributes.get('encryptusername')
         v4 = msg.attributes.get('ticket')
         content = msg.attributes.get('content')
