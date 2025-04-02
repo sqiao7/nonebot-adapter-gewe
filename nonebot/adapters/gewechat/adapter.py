@@ -1,13 +1,10 @@
-import qrcode
 import asyncio
-import ujson as json
-import PIL
-
+from datetime import datetime
 from typing import Any
 from typing_extensions import override
-from pydantic import ValidationError
-from datetime import datetime
 
+import qrcode
+import ujson as json
 from nonebot import get_plugin_config
 from nonebot.compat import type_validate_python
 from nonebot.drivers import (
@@ -23,6 +20,8 @@ from nonebot.drivers import (
 
 from nonebot.adapters import Adapter as BaseAdapter
 from nonebot.log import logger
+from pydantic import ValidationError
+from qrcode.compat.png import PngWriter
 
 from .bot import Bot
 from .event import Event
@@ -31,6 +30,13 @@ from .utils import log, resp_json
 from .model import *
 from .exception import ActionFailed, NetworkError
 from .event_store import EventStorage
+
+
+if PngWriter:
+    from qrcode.image.pure import PyPNGImage
+else:
+    PyPNGImage = None
+
 
 class Adapter(BaseAdapter):
     bots: dict[str, Bot]
@@ -127,7 +133,10 @@ class Adapter(BaseAdapter):
             qr_code = qrcode.QRCode()
             qr_code.add_data(data['data']['qrData'])
             qr_code.print_ascii(invert=True)
-            qr_code.make_image().save("qrcode.png", format="PNG")
+            if PyPNGImage:
+                log("INFO", "正在保存二维码到文件 qrcode.png")
+                with open("qrcode.png", "wb") as f:
+                    qr_code.make_image(PyPNGImage).save(f)
             log("INFO", "请使用微信扫描二维码登录")
             captchCode: str = input("扫码后输入验证码(如果有): ")
         else:

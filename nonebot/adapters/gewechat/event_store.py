@@ -40,7 +40,7 @@ class EventStorage:
         
         return event_id
 
-    def get_by_newmsgid(self, msg_id: int) -> Optional[MessageEvent]:
+    def get_by_newmsgid(self, msg_id: str) -> Optional[MessageEvent]:
         """通过NewMsgId快速获取消息事件"""
         event_id = self._msg_id_index.get(int(msg_id))
         if event_id is None:
@@ -82,9 +82,10 @@ class EventStorage:
                     self._msg_id_index.pop(event.MsgId, None)
                 
                 # 清理其他索引
-                for index in self._additional_indices.values():
-                    index_key = index["key_func"](event)
-                    index["storage"][index_key].discard(event_id)
+                # FIXME: _additional_indices 未定义
+                # for index in self._additional_indices.values():
+                #     index_key = index["key_func"](event)
+                #     index["storage"][index_key].discard(event_id)
                 
                 removed_count += 1
         

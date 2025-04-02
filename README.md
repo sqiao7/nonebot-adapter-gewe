@@ -23,10 +23,14 @@ _✨ NoneBot2 Gewechat Protocol适配器 / Gewechat Protocol Adapter for NoneBot
 ### pip
 ```bash
 pip install nonebot-adapter-gewechat
+# 如果需要将登录二维码保存为图片，请使用以下命令安装
+pip install nonebot-adapter-gewechat[png]
 ```
 ### nb cli
 ```bash
 nb adapter install nonebot-adapter-gewechat
+# 如果需要将登录二维码保存为图片，请使用以下命令安装
+nb adapter install nonebot-adapter-gewechat[png]
 ```
 
 ## 配置

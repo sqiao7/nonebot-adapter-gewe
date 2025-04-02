@@ -1,6 +1,6 @@
 import re
 from typing import Type, Iterable, TypedDict
-from typing_extensions import override
+from typing_extensions import NotRequired, override
 from dataclasses import dataclass
 from nonebot.adapters import Message as BaseMessage, MessageSegment as BaseMessageSegment
 
@@ -102,17 +102,16 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return Emoji("emoji", {"emojiMd5": emojiMd5, "emojiSize": emojiSize})
     
     @classmethod
-    def quote(cls, FromUserName: str, ToUserName: str, title: str, svrId: str, content: str = "", createTime: int = 0, displayName: str = ""):
+    def quote(cls, FromUserName: str, ToUserName: str, svrId: str, content: str = "", createTime: int = 0, displayName: str = ""):
         """引用消息
         :param FromUserName: 发送者/群聊ID
         :param ToUserName: 接收者ID
-        :param title: 引用消息内容
         :param svrId: 被引用消息id
         :param content: 被引用消息内容,发送时留空
         :param createTime: 引用消息创建时间,发送时留空
         :param displayName: 被引用消息用户昵称,发送时留空
         """
-        return Quote("quote", {"FromUserName": FromUserName, "ToUserName": ToUserName, "svrId": svrId, "title": title, "content": content, "displayName": displayName, "createTime": createTime})
+        return Quote("quote", {"FromUserName": FromUserName, "ToUserName": ToUserName, "svrId": svrId, "content": content, "displayName": displayName, "createTime": createTime})
 
     @classmethod
     def appmsg(cls, appmsg: str):
@@ -179,6 +178,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
 
 class _TextData(TypedDict):
     text: str
+    ats: NotRequired[str]
 
 @dataclass
 class Text(MessageSegment):
@@ -195,6 +195,7 @@ class Text(MessageSegment):
 
 class _AtData(TypedDict):
     wxid: str
+    nickname: str
 
 @dataclass
 class At(MessageSegment):
@@ -270,14 +271,14 @@ class _QuoteData(TypedDict):
     FromUserName: str
     ToUserName: str
     svrId: str
-    title: str
+    title: NotRequired[str]
     content: str
     displayName: str
     createTime: int
 
 @dataclass
 class Quote(MessageSegment):
-    data: _QuoteData
+    data: _QuoteData  # type: ignore
 
 class _AppMsgData(TypedDict):
     appmsg: str
@@ -365,23 +366,28 @@ class Message(BaseMessage[MessageSegment]):
             yield MessageSegment.text(content)
 
     def to_payload(self) -> list[tuple[str, dict]]:
-        segments = self.exclude("at", "at_all")
+        segments = self.exclude("at", "at_all", "quote")
         if segments.has("text"):
             first_text = segments["text", 0]
         else:
             first_text = MessageSegment.text("")
             segments.insert(0, first_text)
         if self.has("at_all"):
-            first_text.data["ats"] = "notify@all"  # type: ignore
+            first_text.data["ats"] = "notify@all"
             first_text.data["text"] = "@所有人 " + first_text.data["text"]
         if self.has("at"):
             at_list = self.get("at")
             if "ats" in first_text.data:
                 first_text.data["ats"] += "," + ",".join([at.data["wxid"] for at in at_list])
             else:
-                first_text.data["ats"] = ",".join([at.data["wxid"] for at in at_list])  # type: ignore
+                first_text.data["ats"] = ",".join([at.data["wxid"] for at in at_list])
             for at in at_list:
                 first_text.data["text"] = f'@{at.data["nickname"]} ' + first_text.data["text"]
+        if self.has("quote"):
+            quote = self.get("quote")[0]
+            quote.data["title"] = first_text.data["text"]
+            segments.remove(first_text)
+            segments.insert(0, quote)
         if first_text.data["text"] == "" and not first_text.data.get("ats"):
             segments.remove(first_text)
         api_map = {

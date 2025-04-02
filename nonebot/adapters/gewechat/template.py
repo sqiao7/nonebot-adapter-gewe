@@ -12,7 +12,7 @@ def quote_msg(FromUserName: str, ToUserName: str, svrId: str, title: str, conten
     :param displayName: 发送者昵称
     """
 
-    createTime = datetime.now().timestamp()
+    createTime = int(datetime.now().timestamp())
     QUOTE_MSG_TEMPLATE = f"""<appmsg appid="" sdkver="0">
         <title>{title}</title>
         <des />

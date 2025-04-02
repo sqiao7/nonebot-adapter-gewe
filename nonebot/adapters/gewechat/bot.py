@@ -9,16 +9,49 @@ from nonebot.message import handle_event
 from nonebot.drivers import Response as HttpResponse
 from nonebot.compat import type_validate_python, model_dump
 
-from .message import Message, MessageSegment
-from .event import Event, MessageEvent, TextMessageEvent, ImageMessageEvent, QuoteMessageEvent
+from .message import Message, MessageSegment, Quote
+from .event import Event, MessageEvent, ImageMessageEvent, QuoteMessageEvent
 from .utils import log, resp_json
 from .api_model import *
 
 if TYPE_CHECKING:
     from .adapter import Adapter
+
+
+def check_reply(bot: "Bot", event: MessageEvent) -> None:
+    """检查消息中存在的回复，去除并赋值 `event.to_me`。
+
+    参数:
+        bot: Bot 对象
+        event: MessageEvent 对象
+    """
+    try:
+        index = [x.type == "quote" for x in event.message].index(True)
+    except ValueError:
+        return
+    msg_seg: Quote = event.message[index]  # type: ignore
+
+    if msg_seg.data["ToUserName"] == bot.self_id:
+        event.to_me = True
+    del event.message[index]
+    
+    if (
+        len(event.message) > index
+        and event.message[index].type == "at"
+        and event.message[index].data.get("wxid") == bot.self_id
+    ):
+        del event.message[index]
+
+    if len(event.message) > index and event.message[index].type == "text":
+        event.message[index].data["text"] = event.message[index].data["text"].lstrip()
+        if not event.message[index].data["text"]:
+            del event.message[index]
+
+    if not event.message:
+        event.message.append(MessageSegment.text(""))
     
 
-def check_at_me(bot: "Bot", event: TextMessageEvent):
+def check_at_me(bot: "Bot", event: MessageEvent):
     if event.message.has("at_all"):
         event.to_me = True
         event.message = event.message.exclude("at_all")
@@ -62,7 +95,7 @@ def check_at_me(bot: "Bot", event: TextMessageEvent):
         event.message.append(MessageSegment.text(""))
 
 
-def check_nickname(bot: "Bot", event: TextMessageEvent):
+def check_nickname(bot: "Bot", event: MessageEvent):
     nicknames = bot.config.nickname
     nickname_regex = "|".join(nicknames)
     m = re.search(rf"^({nickname_regex})([\s,, ]*|$)", event.message[0].data["text"], re.IGNORECASE)
@@ -87,14 +120,14 @@ class Bot(BaseBot):
         # 检查事件是否和机器人有关操作, 去除事件消息首尾的 @bot
         # 检查事件是否有回复消息, 调用平台 API 获取原始消息的消息内容
         if isinstance(event, MessageEvent):
-            if isinstance(event, TextMessageEvent):
-                await event.get_ats_wxid(self)
-                check_at_me(self, event)
-                check_nickname(self, event)
-            elif isinstance(event, ImageMessageEvent):
+            await event.get_ats_wxid(self)
+            if isinstance(event, ImageMessageEvent):
                 await event.download_image(self)
             elif isinstance(event, QuoteMessageEvent):
                 await event.get_refer_msg(self)
+                check_reply(self, event)
+            check_at_me(self, event)
+            check_nickname(self, event)
             if not event.is_group_message():
                 event.to_me = True
         # 调用 handle_event 让 NoneBot 对事件进行处理
@@ -708,7 +741,7 @@ class Bot(BaseBot):
         request = deleteFavorFolderRequest(favId=favId)
         return type_validate_python(Response, resp_json(await self.call_api("/favor/delete", **model_dump(request))))
 
-    async def getMessageEventByMsgId(self, msgId: str) -> MessageEvent:
+    def getMessageEventByMsgId(self, msgId: str) -> Optional[MessageEvent]:
         """
         通过msgId获取消息事件
         msgId: 消息id
