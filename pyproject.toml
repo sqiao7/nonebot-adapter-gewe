@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "nonebot-adapter-gewechat"
-authors = ["ShineLight <shine_light@qq.com>"]
-version = "0.5.2"
+name = "nonebot-adapter-gewe"
+authors = ["ShineLight <shine_light@qq.com>", "sqiao7 <sqiao999@gmail.com>"]
+version = "0.6.1"
 readme = "README.md"
 license = "MIT"
-description = "NoneBot adapter for WeChat"
-homepage = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
-repository = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
+description = "NoneBot adapter for GEWE"
+homepage = "https://github.com/sqiao7/nonebot-adapter-gewe"
+repository = "https://github.com/sqiao7/nonebot-adapter-gewe"
 packages = [{ include = "nonebot" }]
 
 [tool.poetry.dependencies]
@@ -26,7 +26,7 @@ pytest = "^8.3.4"
 pytest-cov = "^6.0.0"
 
 [tool.pytest.ini_options]
-addopts = "--cov nonebot/adapters/gewechat --cov-report term-missing"
+addopts = "--cov nonebot/adapters/gewe --cov-report term-missing"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -42,12 +42,13 @@ dev = [
 includes = ["nonebot"]
 
 [project]
-name = "nonebot-adapter-gewechat"
-version = "0.5.2"
-description = "NoneBot adapter for WeChat"
+name = "nonebot-adapter-gewe"
+version = "0.6.1"
+description = "NoneBot adapter for  (wechat)"
 authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
     {name = "ShineLight", email = "shine_light@qq.com"},
+    {name = "sqiao7", email = "sqiao999@gmail.com"},
 ]
 dependencies = [
     "nonebot2>=2.4.2",
@@ -56,13 +57,14 @@ dependencies = [
     "ujson<6.0.0,>=5.10.0",
     "selectolax<1.0.0,>=0.3.28",
 ]
+
 requires-python = "<4.0,>=3.9"
 readme = "README.md"
 license = {text = "MIT"}
 
 [project.urls]
-homepage = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
-repository = "https://github.com/Shine-Light/nonebot-adapter-gewechat"
+homepage = "https://github.com/sqiao7/nonebot-adapter-gewe"
+repository = "https://github.com/sqiao7/nonebot-adapter-gewe"
 
 [project.optional-dependencies]
 png = [

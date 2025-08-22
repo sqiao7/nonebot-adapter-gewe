@@ -6,6 +6,7 @@ from nonebot.adapters import Message as BaseMessage, MessageSegment as BaseMessa
 
 from .template import quote_msg
 
+
 class MessageSegment(BaseMessageSegment["Message"]):
 
     @classmethod
@@ -22,7 +23,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
     @override
     def is_text(self) -> bool:
         return self.type == "text"
-    
+
     @classmethod
     def text(cls, text: str):
         """文本消息
@@ -37,7 +38,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param nickname: 被@的昵称
         """
         return At("at", {"wxid": wxid, "nickname": nickname})
-    
+
     @classmethod
     def at_all(cls):
         """@所有人"""
@@ -51,13 +52,13 @@ class MessageSegment(BaseMessageSegment["Message"]):
         return Image("image", {"imgUrl": imgUrl})
 
     @classmethod
-    def voice(cls, voiceUrl: str ,voiceDuration: int):
+    def voice(cls, voiceUrl: str, voiceDuration: int):
         """语音消息
         :param voiceUrl: 语音链接, 仅支持silk格式
         :param voiceDuration: 语音时长, 单位毫秒
         """
         return Voice("voice", {"voiceUrl": voiceUrl, "voiceDuration": voiceDuration})
-    
+
     @classmethod
     def video(cls, videoUrl: str, thumbUrl: str, videoDuration: int):
         """视频消息
@@ -82,7 +83,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param nickName: 名片用户昵称
         """
         return NameCard("namecard", {"nameCardWxid": nameCardWxid, "nickName": nickName})
-    
+
     @classmethod
     def link(cls, title: str, desc: str, linkUrl: str, thumbUrl: str):
         """链接消息
@@ -100,7 +101,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param emojiSize: 表情大小
         """
         return Emoji("emoji", {"emojiMd5": emojiMd5, "emojiSize": emojiSize})
-    
+
     @classmethod
     def quote(cls, FromUserName: str, ToUserName: str, svrId: str, content: str = "", createTime: int = 0, displayName: str = ""):
         """引用消息
@@ -119,7 +120,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param appmsg: 回调消息中的appmsg节点内容
         """
         return AppMsg("appmsg", {"appmsg": appmsg})
-    
+
     @classmethod
     def miniapp(cls, miniAppId: str, displayName: str, pagePath: str, coverImgUrl: str, title: str, userName: str):
         """小程序消息
@@ -138,28 +139,28 @@ class MessageSegment(BaseMessageSegment["Message"]):
         :param xml: 文件消息的xml
         """
         return forwardFile("forwardFile", {"xml": xml})
-    
+
     @classmethod
     def forwardImage(cls, xml: str):
         """转发图片
         :param xml: 图片消息的xml
         """
         return forwardImage("forwardImage", {"xml": xml})
-    
+
     @classmethod
     def forwardVideo(cls, xml: str):
         """转发视频
         :param xml: 视频消息的xml
         """
         return forwardVideo("forwardVideo", {"xml": xml})
-    
+
     @classmethod
     def forwardLink(cls, xml: str):
         """转发链接
         :param xml: 链接消息的xml
         """
         return forwardLink("forwardLink", {"xml": xml})
-    
+
     @classmethod
     def forwardMP(cls, xml: str, coverImgUrl: str):
         """转发小程序
@@ -180,6 +181,7 @@ class _TextData(TypedDict):
     text: str
     ats: NotRequired[str]
 
+
 @dataclass
 class Text(MessageSegment):
     data: _TextData  # type: ignore
@@ -187,7 +189,7 @@ class Text(MessageSegment):
     @override
     def __str__(self):
         return self.data["text"]
-    
+
     @override
     def is_text(self) -> bool:
         return True
@@ -196,6 +198,7 @@ class Text(MessageSegment):
 class _AtData(TypedDict):
     wxid: str
     nickname: str
+
 
 @dataclass
 class At(MessageSegment):
@@ -212,42 +215,52 @@ class AtAll(MessageSegment):
 class _ImageData(TypedDict):
     imgUrl: str
 
+
 @dataclass
 class Image(MessageSegment):
     data: _ImageData  # type: ignore
+
 
 class _VoiceData(TypedDict):
     voiceUrl: str
     voiceDuration: int
 
+
 @dataclass
 class Voice(MessageSegment):
     data: _VoiceData  # type: ignore
+
 
 class _VideoData(TypedDict):
     videoUrl: str
     thumbUrl: str
     videoDuration: int
 
+
 @dataclass
 class Video(MessageSegment):
     data: _VideoData  # type: ignore
+
 
 class _FileData(TypedDict):
     fileUrl: str
     fileName: str
 
+
 @dataclass
 class File(MessageSegment):
     data: _FileData  # type: ignore
+
 
 class _NameCardData(TypedDict):
     nameCardWxid: str
     nickName: str
 
+
 @dataclass
 class NameCard(MessageSegment):
     data: _NameCardData  # type: ignore
+
 
 class _LinkData(TypedDict):
     title: str
@@ -255,17 +268,21 @@ class _LinkData(TypedDict):
     linkUrl: str
     thumbUrl: str
 
+
 @dataclass
 class Link(MessageSegment):
     data: _LinkData  # type: ignore
+
 
 class _EmojiData(TypedDict):
     emojiMd5: str
     emojiSize: int
 
+
 @dataclass
 class Emoji(MessageSegment):
     data: _EmojiData  # type: ignore
+
 
 class _QuoteData(TypedDict):
     FromUserName: str
@@ -276,16 +293,20 @@ class _QuoteData(TypedDict):
     displayName: str
     createTime: int
 
+
 @dataclass
 class Quote(MessageSegment):
     data: _QuoteData  # type: ignore
 
+
 class _AppMsgData(TypedDict):
     appmsg: str
+
 
 @dataclass
 class AppMsg(MessageSegment):
     data: _AppMsgData  # type: ignore
+
 
 class _MiniAppData(TypedDict):
     miniAppId: str
@@ -295,45 +316,56 @@ class _MiniAppData(TypedDict):
     title: str
     userName: str
 
+
 @dataclass
 class MiniApp(MessageSegment):
     data: _MiniAppData  # type: ignore
+
 
 class _RevokeData(TypedDict):
     msgId: str
     newMsgId: str
     createTime: int
 
+
 @dataclass
 class Revoke(MessageSegment):
     data: _RevokeData  # type: ignore
 
+
 class _XmlData(TypedDict):
     xml: str
+
 
 @dataclass
 class Xml(MessageSegment):
     data: _XmlData  # type: ignore
 
+
 @dataclass
 class forwardFile(MessageSegment):
     data: _XmlData  # type: ignore
+
 
 @dataclass
 class forwardImage(MessageSegment):
     data: _XmlData  # type: ignore
 
+
 @dataclass
 class forwardVideo(MessageSegment):
     data: _XmlData  # type: ignore
+
 
 @dataclass
 class forwardLink(MessageSegment):
     data: _XmlData  # type: ignore
 
+
 class _ForwardMiniAppData(TypedDict):
     xml: str
     coverImgUrl: str
+
 
 @dataclass
 class forwardMP(MessageSegment):
@@ -352,7 +384,7 @@ class Message(BaseMessage[MessageSegment]):
     def _construct(msg: str) -> Iterable[MessageSegment]:
         text_begin = 0
         for embed in re.finditer(r"@(?:所有人| all people|\S+)\s?", msg):
-            content = msg[text_begin:embed.pos + embed.start()]
+            content = msg[text_begin : embed.pos + embed.start()]
             if content:
                 yield MessageSegment.text(content)
             text_begin = embed.pos + embed.end()
@@ -390,22 +422,11 @@ class Message(BaseMessage[MessageSegment]):
             segments.insert(0, quote)
         if first_text.data["text"] == "" and not first_text.data.get("ats"):
             segments.remove(first_text)
-        api_map = {
-            "text": "Text",
-            "image": "Image",
-            "file": "File",
-            "video": "Video",
-            "voice": "Voice",
-            "link": "Link",
-            "emoji": "Emoji",
-            "namecard": "NameCard",
-            "appmsg": "AppMsg",
-            "mp": "MiniApp"
-        }
+        api_map = {"text": "Text", "image": "Image", "file": "File", "video": "Video", "voice": "Voice", "link": "Link", "emoji": "Emoji", "namecard": "NameCard", "appmsg": "AppMsg", "mp": "MiniApp"}
 
         msg_payload = []
         for segment in segments:
-            if segment.type == 'quote':
+            if segment.type == "quote":
                 appmsg_content = quote_msg(**segment.data)
                 api = "/message/postAppMsg"
                 msg_payload.append((api, {"appmsg": appmsg_content}))
@@ -418,5 +439,4 @@ class Message(BaseMessage[MessageSegment]):
                 msg_payload.append((api, {"content": segment.data["text"], "ats": segment.data.get("ats", "")}))
             else:
                 msg_payload.append((api, segment.data))
-
         return msg_payload
